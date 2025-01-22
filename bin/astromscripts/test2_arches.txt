@@ -1,0 +1,17 @@
+###############################################################################
+# Name: vizier.xms
+# Description: Load data from Vizier and save it.
+# Input files: none
+# Output files: 
+#  - sdss9.vot: sdss data such as loaded from VizieR
+# main: xmm2athena.gaia_cat()
+###############################################################################
+
+# load gaia at suss epoch
+get FileLoader file="gtemp.fit"
+set cols *
+set pos ra=raobsep  dec=decobsep
+set poserr type=RCD_DEC_ELLIPSE param1=pmra_error param2=pmdec_error
+prefix gaiadr3_
+save gaia.vot votable
+

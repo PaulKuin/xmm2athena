@@ -1,0 +1,28 @@
+###############################################################################
+# Name: test1_arches.txt
+# Description: Load data, xmatch, save
+# Input files: gaia (gtamp) and suss5 
+# Output files: xmerg.fits
+# main: xmm2athena.gaia_cat()
+###############################################################################
+
+# load suss data
+get FileLoader file="suss5_obsid.fit"
+set cols *
+set pos ra=RA dec=DEC
+set poserr type=CIRCLE param1=POSERR
+prefix suss_
+save suss.vot votable
+
+# load gaia at suss epoch
+get FileLoader file="gtemp.fit"
+set cols *
+set pos ra=raobsep  dec=decobsep
+set poserr type=RCD_DEC_ELLIPSE param1=pmra_error param2=pmdec_error
+prefix gaiadr3_
+save gaia.vot votable
+
+# Perform the xmatch
+xmatch probaN_v1 completeness=0.9973  joins=L  area=0.00003828
+# Save the result
+save xmerg.fits fits
