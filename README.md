@@ -29,7 +29,10 @@ The second step of the processing is done after merging in the proper motion and
 
 For more efficient processing of a large number of observations using arches is not optimal. The approach was changed to selecting all observations in a certain area, and matching using the stilts program. Here is also made use of the addEpoch2Source.sh script. 
 
-In addition there are some shell scripts which were written for simple operations and some of those were not used in the processing at all. 
+In addition there are some shell scripts which were written for simple operations and some of those were not used in the processing at all.
+
+**acknowledgement**
+This project has received funding from the European Union's Horizon 2020 research and innovation programme under Grant Agreement No. 101004168. 
 
 
 
