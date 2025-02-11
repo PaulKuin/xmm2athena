@@ -1,0 +1,903 @@
+May 2, 2024 Post Finals
+
+Changed the Gaia-Gmag -  WISE-W1 as follows: 
+
+Gaia_G_WISE_W1=((BII>10.0)||(BII<-10.0))&&
+(WI_W1mag<16.0)&&
+!(gaiadr3_ra<500.0)?(20.0-WI_W1mag):(Gaia_Gmag<15.6)&&
+!(WI_W1mag>0.0)?(Gaia_Gmag-17.1):(gaia_Gmag-WI_W1mag)
+
+So, for sources outside the Galactic plane, with WISE_W1 < 16 and
+if gaiadr3_ra is missing, set WI_W1mag = 20.0 otherwise, if
+WISE_W1 exists set to Gaia_Gmag-WI_W1mag if not, to Gaia_Gmag-17.1 
+
+(v5 had an error in the Gaia_G_WISE_W1 expression and was deleted)
+
+output catalog: classification_set_v6.csv
+
+input catalog: ../XMMOM_SUSS5.0_Sources_4claxbol_v6.csv
+This program will classify X-ray sources from ../XMMOM_SUSS5.0_Sources_4claxbol_v6.csv using 12 of their properties:
+uvw1_u, b_v, W2_W1, BP_RP, UVM2mUVW1, UVW2mUVW1, UVW1mGmag,
+Gaia_G_WISE_W1, gaia_extended, umag_rmag, k_WiseW1, OMu_b
+
+trueprop = [0.69, 0.13, 0.18]	 global_coeffs = [0.91, 1.52, 6.97, 4.61, 2.07]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3809450, NpC1=516515, NpC2=1637085
+Truth --->			C0	C1		C2		retrieval fraction (%)
+P0 				62557	58		31		98.2
+P1 				773		3510	277		84.0
+P2 				363		611		5529	94.7
+true pos. rate	99.9	77.0	85.0
+corrected t.p.r	99.6	86.6	88.1
+f1-scores: 		0.989, 0.853, 	0.913
+
+So, the check on the training set is showing hardly any change. But the training set 
+is in general more complete in the number of parameters than the overall catalogue.
+
+If we do simple statistics on the parameters/columns then we see that there is a shift 
+in the mean for the classes where about 4% of the previous stellar are down, 2% of 
+galaxies are up, and QSO classifications are also up by 2% approximately.
+
+
+
+
+
+
+==========================================================================================
+
+FINALs - select the ALT solution 
+
+(astroconda) NoctiLuna:classificationcode kuin$ python classify_new.py 
+Using /Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode configfile.ini  
+output catalog: classification_set_v4.csv
+input catalog: ../XMMOM_SUSS5.0_Sources_4claxbol_v4.csv
+This program will classify X-ray sources from ../XMMOM_SUSS5.0_Sources_4claxbol_v4.csv using 12 of their properties:
+uvw1_u, b_v, W2_W1, BPRP, UVM2mUVW1, UVW2mUVW1, UVW1mGmag, WISEW1mGmag, gaia_extended, umag_rmag, OMu_b, k_WiseW1
+
+estimating densities...
+makedistrib:34 Classes are [0 1 2]
+densities estimated
+detecting missing values...
+total number of missing values: 53652064
+likelihoods computed for non-missing values
+likelihoods computed for missing values
+
+classifier ready!
+
+starting classification
+trueprop = [0.69, 0.13, 0.18]	 global_coeffs = [0.6, 3.73, 4.07, 4.76, 7.63]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=4136491, NpC1=370822, NpC2=1455737
+Truth --->	C0	C1	C2	retrieval fraction (%)
+P0 		62911	149		86		98.8
+P1 		674		3417	263		81.8
+P2 		108		613		5488	94.0
+true pos. rate	99.6	78.5	88.4
+corrected t.p.r	98.9	87.3	89.3
+f1-scores: 0.989, 0.845, 0.916
+saving...
+======= Alt : 
+
+Using /Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode configfile.ini  
+output catalog: classification_set_v4.csv
+input catalog: ../XMMOM_SUSS5.0_Sources_4claxbol_v4.csv
+This program will classify X-ray sources from ../XMMOM_SUSS5.0_Sources_4claxbol_v4.csv using 12 of their properties:
+uvw1_u, b_v, W2_W1, BPRP, UVM2mUVW1, UVW2mUVW1, UVW1mGmag, WISEW1mGmag, gaia_extended, umag_rmag, OMu_b, k_WiseW1
+
+trueprop = [0.69, 0.13, 0.18]	 global_coeffs = [0.91, 1.52, 6.97, 4.61, 2.07]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=4123854, NpC1=298334, NpC2=1540862
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				62647	67		40		98.4
+P1 				795		3476	256		83.2
+P2 				251		636		5541	94.9
+true pos. rate	99.8	76.8	86.2
+corrected t.p.r	99.5	86.8	88.4
+f1-scores: 		0.989, 0.849, 0.915
+
+
+====
+
+
+
+
+REDUCING THE NUMBER OF PARAMETERS
+
+cat 2 colours
+   1                    uvw1 -  u	1	1.0	 2	0	1
+   2                        b - v	1	1.0	 2	0	1
+   3            WISE W2 - WISE W1	1	1.0	 2	0	1
+   4                     BP -  RP	1	1	 2	0	1
+   5                   UVM2- UVW1	1	1.0	 2	0	1
+   6                   UVW2- UVW1	1	1.0	 2	0	1
+   7                   UVW1- Gmag	1	1.0	 2	0	1
+   8                 WISEW1- Gmag	1	1.0	 2	0	1
+   9                     OM u - b	1	1	 2	0	1
+  10                 ground u -_r	1	1	 2	0 	1
+  11                  k - WiseW1	1	1	 2	0	1                         
+cat 3 extended
+  12                 gaia_extended	1	4	 3	0	1
+                     
+
+This program will classify X-ray sources from ../XMMOM_SUSS5.0_Sources_4claxbol_v4.csv using 11 of their properties:
+uvw1_u, b_v, W2_W1, BPRP, UVM2mUVW1, UVW2mUVW1, UVW1mGmag,
+WISEW1mGmag, gaia_extended, umag_gmag, OMu_b
+V5a
+trueprop = [0.69, 0.13, 0.18]	 global_coeffs = [0.6, 3.73, 4.07, 4.76, 7.63]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=4124208, NpC1=421360, NpC2=1417482
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				62896	158		78		98.7
+P1 				695		3307	213		79.1
+P2 				102		714		5546	95.0
+true pos. rate	99.6	78.5	87.2
+corrected t.p.r	98.9	87.9	88.0
+f1-scores: 0.988, 0.833, 0.914
+-> 
+trueprop = [0.69, 0.13, 0.18]	 global_coeffs = [0.59, 5.21, 8.16, 4.41, 9.15]
+NC0=22180, NC1=4179, NC2=5786
+NpC0=21982, NpC1=3950, NpC2=6213
+Truth --->		C0		C1		C2	retrieval fraction (%)
+	P0 			21845	91		46		98.5
+	P1 			269		3416	265		81.7
+	P2 			66		672		5475	94.6
+true pos. rate	99.4	86.5	88.1
+corrected t.p.r	99.4	86.5	88.1
+f1-scores: 0.989, 0.840, 0.913
+-> rerun with new global_coeffs
+trueprop = [0.69, 0.13, 0.18]	 global_coeffs = [0.59, 5.21, 8.16, 4.41, 9.15]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=4082473, NpC1=512958, NpC2=1367619
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				62716	91		46		98.5
+P1 				803		3416	269		81.7
+P2 				174		672		5522	94.6
+true pos. rate	99.8	76.1	86.7
+corrected t.p.r	99.4	86.2	88.2
+f1-scores: 0.989, 0.839, 0.913
+
+REPLACING u-g WITH u-r AND ADDING k - Wise-W1
+
+This program will classify X-ray sources from ../XMMOM_SUSS5.0_Sources_4claxbol_v4.csv using 12 of their properties:
+uvw1_u, b_v, W2_W1, BPRP, UVM2mUVW1, UVW2mUVW1, UVW1mGmag,
+WISEW1mGmag, gaia_extended, umag_rmag, OMu_b, k_WiseW1
+v5
+trueprop = [0.69, 0.13, 0.18]	 global_coeffs = [0.87, 2.34, 5.0, 2.2, 0.75]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=4053340, NpC1=324027, NpC2=1585683
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				62485	60		36		98.1
+P1 				800		3495	276		83.6
+P2 				408		624		5525	94.7
+true pos. rate	99.8	76.5	84.3
+corrected t.p.r	99.6	86.4	87.7
+f1-scores: 0.988, 0.850, 0.911
+
+
+trueprop = [0.69, 0.13, 0.18]	 global_coeffs = [0.79, 6.24, 8.36, 3.56, 2.98]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=4097473, NpC1=336282, NpC2=1529295
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				62558	71		41		98.2
+P1 				776		3520	316		84.2
+P2 				359		588		5480	93.9
+true pos. rate	99.8	76.3	85.3
+corrected t.p.r	99.5	85.8	88.4
+f1-scores: 0.988, 0.850, 0.911
+
+compared to earlier coeffs
+trueprop = [0.69, 0.13, 0.18]	 global_coeffs = [0.6, 3.73, 4.07, 4.76, 7.63]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=4136491, NpC1=370822, NpC2=1455737
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				62911	149		86		98.8
+P1 				674		3417	263		81.8
+P2 				108		613		5488	94.0
+true pos. rate	99.6	78.5	88.4
+corrected t.p.r	98.9	87.3	89.3
+f1-scores: 0.989, 0.845, 0.916
+
+ADDING ALSO CHI2RED (12 parameters, 3 categories) : hardly any change 
+
+sources from ../XMMOM_SUSS5.0_Sources_4claxbol_v5.csv using 13 of their properties:
+uvw1_u, b_v, W2_W1, BPRP, UVM2mUVW1, UVW2mUVW1, UVW1mGmag,
+WISEW1mGmag, gaia_extended, umag_rmag, OMu_b, k_WiseW1, chi2red
+
+trueprop = [0.69, 0.13, 0.18]	 global_coeffs = [0.6, 3.73, 4.07, 4.76, 7.63]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=4203956, NpC1=316011, NpC2=1443083
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				62939	159		90		98.8
+P1 				648		3424	278		81.9
+P2 				106		596		5469	93.7
+true pos. rate	99.6	78.7	88.6
+corrected t.p.r	98.9	87.2	89.5
+f1-scores: 0.988, 0.845, 0.916
+
+
+
+
+
+
+=================================================================
+v5: reorganised 30 categories, then optimise the f1 score (mainly on QSO/C1) 
+
+After some discussion we agreed not to include brightness, as it gives a bias 
+while we found discarding the variability did not make a  difference in the 
+classification. 
+
+  # 				    property to_use weight category pba_ifnull	scale
+category 1 brightness
+  2                 		UVW1	1		1	 1		0	1
+ 19                         gmag	1		1.0	 1		0	1
+ 20                     GaiaGmag	1		2.0	 1		0	1
+category 2 colours
+  3                        BP-RP	1		1	 2		0	1
+  4                      Gaia_AG	1		1.0	 2		0	1
+  5                    UVM2-UVW1	1		1.0	 2		0	1
+  6                    UVW2-UVW1	1		1.0	 2		0	1
+  7                    UVW1-Gmag	1		1.0	 2		0	1 
+  8             WISE_W1-GaiaGmag	1		4.0	 2		0	1
+  9                 zmag-WISE_W3	1		3.0	 2		0	1
+ 10                	  GaiaGmag-B	1		2.0	 2		0	1
+ 11                	   Kmag-UVW1	1		2.0	 2		0	1
+ 12                       UVW1-u	1		1.0	 2		0	1
+ 13                          b-v	1		1.0	 2		0	1
+ 14                    WISE_W1-z	1		1.0	 2		0	1
+ 15              WISE_W2-WISE_W1	1		1.0	 2		0	1
+ 16              WISE_W3-WISE_W2	1		1	 2		0	1
+ 17                       gPK-uP	1		4.0	 2		0	1
+ 18                      rPK-gPK	1		2.0	 2		0	1
+category 3 physical extension
+  1                gaia_extended	1		4	 3		0	1
+ 21           UVW2_EXTENDED_FLAG	1		1.0	 3		0	1
+ 22           UVM2_EXTENDED_FLAG	1		1.0	 3		0	1
+ 23           UVW1_EXTENDED_FLAG	1		1.0	 3		0	1
+ 24              U_EXTENDED_FLAG	1		1.0	 3		0	1
+ 25              B_EXTENDED_FLAG	1		1.0	 3		0	1
+ 26              V_EXTENDED_FLAG	1		1.0	 3		0	1
+category 4 variability
+ 27                    u_chi2red	1		1.0	 4		0	1
+ 28                    b_chi2red	1		1.0	 4		0	1
+ 29                    v_chi2red	1		1.0	 4		0	1
+ 30                   WISE_W1mag 	1		1.0	 4		0	1
+
+This program will classify X-ray sources from ../XMMOM_SUSS5.0_Sources_4claxbol_v4.csv 
+using 30 of their properties:
+UVW1_AB_MAG, UVW2_EXTENDED_FLAG, UVM2_EXTENDED_FLAG, UVW1_EXTENDED_FLAG, 
+U_EXTENDED_FLAG, B_EXTENDED_FLAG, V_EXTENDED_FLAG,
+uuchi2red, bbchi2red, vvchi2red, WI_W1mag, gmag_M, uvw1_u, b_v,
+W1_z, W2_W1, W3_W2, gPK_uP, rPK_gPK, Gmag, BPRP,
+AG, UVM2mUVW1, UVW2mUVW1, UVW1mGmag, WISEW1mGmag, zmagMwiseW3, GmagmBmag,
+Km_uvw1, gaia_extended
+
+E: trueprop = [0.81, 0.07, 0.12]	 global_coeffs = [0.96, 5.42, 4.65, 8.91, 6.3]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=4155959, NpC1=248734, NpC2=1558357
+Truth --->		C0		C1		C2		retrieval fraction (%)
+P0 				63409	124		28		99.6
+P1 				228		3435	246		82.2
+P2 				56		620		5563	95.3
+true pos. rate	99.8	87.9	89.2
+corrected t.p.r	99.7	87.9	91.2
+f1-scores: 0.996, 0.849, 0.932
+
+BEST SOLUTION SO FAR FROM (A,B,C,D,E,F)
+based on off-diagonal terms... need to formulate a criterion for that. 
+
+
+A
+trueprop = [0.69, 0.11, 0.2]	 global_coeffs = [0.3, 5.42, 4.78, 4.93, 1.07]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3221335, NpC1=1288768, NpC2=1452947
+Truth --->		C0		C1		C2		retrieval fraction (%)
+P0 				62900	20		16		98.8
+P1 				716		3805	710		91.1
+P2 				77		354		5111	87.6
+true pos. rate	99.9	72.7	92.2
+corrected t.p.r	99.8	75.7	94.5
+f1-scores: 		0.993, 0.827, 0.909
+
+After rerun using differential evolution (seven steps) to optimise the f1 scores, we 
+get new global coefficients and table.
+
+After the QSO/C1 optimisation the QSO's that are misclassified as star or galaxy dropped:
+
+A/B
+Optimisation on a proportional subset:
+trueprop = [0.69, 0.11, 0.2]	 global_coeffs = [0.808 8.449 5.969 8.874 0.743]
+NC0=20137, NC1=3210, NC2=5837
+NpC0=19944, NpC1=3175, NpC2=6065
+Truth --->		C0		C1		C2		retrieval fraction (%)
+	P0 			19908	26		10		98.9
+	P1 			201		2720	254		84.7
+	P2 			28		464		5573	95.5
+true pos. rate	99.8	85.7	91.9
+corrected t.p.r	99.8	85.7	91.9
+f1-scores: 0.993, 0.852, 0.936
+-> rerun with new global_coeffs:
+trueprop = [0.69, 0.11, 0.2]	 global_coeffs = [0.808, 8.449, 5.969, 8.874, 0.743]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3394509, NpC1=910630, NpC2=1657911
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				62987	33		10		98.9
+P1 				621		3544	254		84.8
+P2 				85		602		5573	95.5
+true pos. rate	99.9	80.2	89.0
+corrected t.p.r	99.8	85.8	91.9
+f1-scores: 0.994, 0.853, 0.937
+Optimisation on a proportional subset:
+trueprop = [0.69, 0.11, 0.2]	 global_coeffs = [0.84, 8.53, 6.26, 7.28, 0.12]
+NC0=20137, NC1=3210, NC2=5837
+NpC0=19915, NpC1=3203, NpC2=6066
+Truth --->	C0	C1	C2	retrieval fraction (%)
+	P0 		19892	16		7		98.8
+	P1 		212		2730	261		85.0
+	P2 		33		464		5569	95.4
+true pos. rate	99.9	85.2	91.8
+corrected t.p.r	99.9	85.2	91.8
+f1-scores: 0.993, 0.851, 0.936
+
+==
+change manually global_coeff[4] to 1.0 run  
+C
+trueprop = [0.69, 0.11, 0.2]	 global_coeffs = [0.84, 8.53, 6.26, 7.28, 1.0]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3385064, NpC1=942317, NpC2=1635669
+Truth --->	C0	C1	C2	retrieval fraction (%)
+P0 		62966	30		8		98.9
+P1 		643		3557	269		85.1
+P2 		84		592		5560	95.3
+true pos. rate	99.9	79.6	89.2
+corrected t.p.r	99.8	85.3	92.0
+f1-scores: 0.993, 0.852, 0.936
+optimise proportional subset
+trueprop = [0.69, 0.11, 0.2]	 global_coeffs = [0.866, 9.937, 6.779, 7.205, 0.205]
+NC0=20137, NC1=3210, NC2=5837
+NpC0=19934, NpC1=3205, NpC2=6045
+Truth --->	C0	C1	C2	retrieval fraction (%)
+	P0 		19910	17		7		98.9
+	P1 		198		2751	256		85.7
+	P2 		29		442		5574	95.5
+true pos. rate	99.9	85.8	92.2
+corrected t.p.r	99.9	85.8	92.2
+f1-scores: 0.994, 0.858, 0.938
+->rerun with these global_coeffs
+trueprop = [0.69, 0.11, 0.2]	 global_coeffs = [0.866, 9.937, 6.779, 7.205, 0.205]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3342909, NpC1=988672, NpC2=1631469
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				62963	29		7		98.9
+P1 				646		3555	255		85.1
+P2 				84		595		5575	95.5
+true pos. rate	99.9	79.8	89.1
+corrected t.p.r	99.9	85.6	92.0
+f1-scores: 0.994, 0.853, 0.937
+
+
+=== change trueprop to [0.80, 0.08, 0.12] (close to ratios 0.87,0.05,0.10) and global_coeffs: [1, 5, 10, 7, 1.]
+D
+trueprop = [0.8, 0.08, 0.12]	 global_coeffs = [1, 5, 10, 7, 1.0]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3721932, NpC1=665446, NpC2=1575672
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				62885	21		13		98.7
+P1 				672		3626	381		86.8
+P2 				136		532		5443	93.2
+true pos. rate	99.9	77.5	89.1
+corrected t.p.r	99.9	81.0	90.4
+f1-scores: 0.993, 0.838, 0.918
+optimise:
+trueprop = [0.8, 0.08, 0.12]	 global_coeffs = [0.997 7.392 5.779 9.55  5.876]
+NC0=38913, NC1=3891, NC2=5837
+NpC0=38754, NpC1=3815, NpC2=6072
+Truth --->	C0	C1	C2	retrieval fraction (%)
+	P0 		38656	81		17		99.3
+	P1 		227		3276	312		84.2
+	P2 		30		534		5508	94.4
+true pos. rate	99.7	85.9	90.7
+corrected t.p.r	99.7	85.9	90.7
+f1-scores: 0.995, 0.850, 0.925
+
+========== D/E
+change trueprop=[0.81,0.07,0.12] global_coeffs=[1.0, 7.39, 5.78, 9.55, 5.88]
+E
+trueprop = [0.81, 0.07, 0.12]	 global_coeffs = [1.0, 7.39, 5.78, 9.55, 5.88]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=4076119, NpC1=320577, NpC2=1566354
+Truth --->		C0		C1		C2		retrieval fraction (%)
+P0 				63327	97		19		99.4
+P1 				305		3444	230		82.4
+P2 				61		638		5588	95.7
+true pos. rate	99.8	86.6	88.9
+corrected t.p.r	99.8	87.0	90.9
+f1-scores: 0.996, 0.847, 0.933
+->optimise:
+trueprop = [0.81, 0.07, 0.12]	 global_coeffs = [0.96, 5.42, 4.65, 8.91, 6.30]
+NC0=39399, NC1=3404, NC2=5837
+NpC0=39353, NpC1=3188, NpC2=6099
+Truth --->	C0		C1		C2		retrieval fraction (%)
+	P0 		39225	100		28		99.6
+	P1 		143		2800	245		82.3
+	P2 		31		504		5564	95.3
+true pos. rate	99.7	87.8	91.2
+corrected t.p.r	99.7	87.8	91.2
+f1-scores: 0.996, 0.850, 0.932
+-> rerun with new global coeffs  [0.96, 5.42, 4.65, 8.91, 6.30] 
+trueprop = [0.81, 0.07, 0.12]	 global_coeffs = [0.96, 5.42, 4.65, 8.91, 6.3]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=4155959, NpC1=248734, NpC2=1558357
+Truth --->		C0		C1		C2		retrieval fraction (%)
+P0 				63409	124		28		99.6
+P1 				228		3435	246		82.2
+P2 				56		620		5563	95.3
+true pos. rate	99.8	87.9	89.2
+corrected t.p.r	99.7	87.9	91.2
+f1-scores: 0.996, 0.849, 0.932
+
+BEST SOLUTION SO FAR FROM (A,B,C,D,E,F)
+based on off-diagonal terms
+===   ======  ======== 
+
+try trueprop= [0.75, 0.09, 0.16]  global_coeef = [1, 5, 5, 9, 6]
+F
+trueprop = [0.75, 0.09, 0.16]	 global_coeffs = [0.3, 5.42, 4.78, 4.93, 1.07]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3447795, NpC1=1204917, NpC2=1310338
+Truth --->		C0		C1		C2		retrieval fraction (%)
+P0 				62953	26		20		98.8
+P1 				671		3806	731		91.1
+P2 				69		347		5086	87.1
+true pos. rate	99.9	73.1	92.4
+corrected t.p.r	99.9	74.6	94.4
+f1-scores: 0.993, 0.820, 0.906
+->optimise:
+trueprop = [0.75, 0.09, 0.16]	 global_coeffs = [0.92, 3.56, 4.4, 8.78, 3.58]
+NC0=27360, NC1=3283, NC2=5837
+NpC0=27243, NpC1=3106, NpC2=6131
+Truth --->		C0		C1		C2	retrieval fraction (%)
+	P0 			27160	61		22		99.3
+	P1 			163		2713	230		82.6
+	P2 			37		509		5585	95.7
+true pos. rate	99.7	87.3	91.1
+corrected t.p.r	99.7	87.3	91.1
+f1-scores: 0.995, 0.849, 0.933
+-> rerun
+trueprop = [0.75, 0.09, 0.16]	 global_coeffs = [0.92, 3.56, 4.4, 8.78, 3.58]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3837066, NpC1=469581, NpC2=1656403
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				63209	76		22		99.2
+P1 				391		3464	228		82.9
+P2 				93		639		5587	95.7
+true pos. rate	99.8	84.8	88.4
+corrected t.p.r	99.7	87.3	91.2
+f1-scores: 0.995, 0.850, 0.934
+
+======
+G : true ratios based on SUSSxSIMBADxSDSS16 [0.459,0.029,0.512]
+trueprop = [0.459, 0.029, 0.512]	 global_coeffs = [0.92, 3.56, 4.4, 8.78, 3.58]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3478892, NpC1=52430, NpC2=2431728
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				63236	159		18		99.3
+P1 				155		2557	37		61.2
+P2 				302		1463	5782	99.1
+true pos. rate	99.7	93.0	76.6
+corrected t.p.r	99.4	80.3	97.6
+- optimise
+trueprop = [0.459, 0.029, 0.512]	 global_coeffs = [0.21  4.306 8.409 6.789 9.386]
+NC0=5232, NC1=330, NC2=5837
+NpC0=5206, NpC1=314, NpC2=5879
+Truth --->		C0		C1		C2	retrieval fraction (%)
+	P0 			5178	6		22		99.0
+	P1 			28		230		56		69.7
+	P2 			26		94		5759	98.7
+true pos. rate	99.5	73.2	98.0
+corrected t.p.r	99.5	73.3	98.0
+f1-scores: 0.992, 0.714, 0.983
+->rerun
+trueprop = [0.459, 0.029, 0.512]	 global_coeffs = [0.21, 4.31, 8.41, 6.79, 9.39]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3559024, NpC1=112557, NpC2=2291469
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				63081	71		22		99.0
+P1 				342		2974	56		71.2
+P2 				270		1134	5759	98.7
+true pos. rate	99.9	88.2	80.4
+corrected t.p.r	99.5	73.7	98.1
+f1-scores: 0.993, 0.724, 0.984
+... this is not a very good solution, suggesting these priors are not 
+correct, e.g., the final diagonal proportions are 88,4,8 %
+======
+H : ratio based on SUSS*SIMBAD types [0.69,0.06,0.25]
+Note: if I ratio QSO and galaxy from the SDSS extracted training set it 
+becomes [0.69,0.13,0.18]which is close to the A, B sets. 
+
+trueprop = [0.69, 0.06, 0.25]	 global_coeffs = [0.21, 4.31, 8.41, 6.79, 9.39]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3871801, NpC1=605924, NpC2=1485325
+Truth --->		C0	C1	C2	retrieval fraction (%)
+P0 				63111	54		35		99.1
+P1 				490		3539	397		84.7
+P2 				92		586		5405	92.6
+true pos. rate	99.9	80.0	88.9
+corrected t.p.r	99.7	69.5	96.1
+f1-scores: 0.994, 0.763, 0.943
+->optimise
+trueprop = [0.69, 0.06, 0.25]	 global_coeffs = [0.59655079 3.72629197 4.0732365  4.75586973 7.62901895]
+NC0=16110, NC1=1400, NC2=5837
+NpC0=16060, NpC1=1261, NpC2=6026
+Truth --->		C0		C1		C2	retrieval fraction (%)
+	P0 			16007	30		23		99.4
+	P1 			68		1082	111		77.3
+	P2 			35		288		5703	97.7
+true pos. rate	99.7	85.8	94.6
+corrected t.p.r	99.7	85.8	94.6
+f1-scores: 0.995, 0.813, 0.961
+-> rerun with new coefficients
+trueprop = [0.69, 0.06, 0.25]	 global_coeffs = [0.6, 3.73, 4.07, 4.76, 7.63]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3828246, NpC1=158668, NpC2=1976136
+Truth --->		C0		C1		C2	retrieval fraction (%)
+P0 				63302	93		23		99.4
+P1 				264		3247	111		77.7
+P2 				127		839		5703	97.7
+true pos. rate	99.8	89.6	85.5
+corrected t.p.r	99.7	86.0	94.8
+f1-scores: 0.995, 0.816, 0.962
+
+===========
+K: priors based on SUSS*SIMBAD for star/non-star and ratio QSO and galaxies from training set [0.69,0.13,0.18]
+
+
+
+
+======  ================= old stuff ======
+
+no BII, no plx, no plx/err
+
+Using /Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode configfile.ini  
+output catalog: classification_set_v3.csv
+
+input catalog: ../XMMOM_SUSS5.0_Sources_4claxbol_v4.csv
+
+This program will classify X-ray sources from ../XMMOM_SUSS5.0_Sources_4claxbol_v4.csv using 30 of their properties:
+UVW1_AB_MAG, UVW2_EXTENDED_FLAG, UVM2_EXTENDED_FLAG, UVW1_EXTENDED_FLAG, U_EXTENDED_FLAG, B_EXTENDED_FLAG, V_EXTENDED_FLAG,
+uuchi2red, bbchi2red, vvchi2red, WI_W1mag, gmag_M, uvw1_u, b_v,
+W1_z, W2_W1, W3_W2, gPK_uP, rPK_gPK, Gmag, BPRP,
+AG, UVM2mUVW1, UVW2mUVW1, UVW1mGmag, WISEW1mGmag, zmagMwiseW3, GmagmBmag,
+Km_uvw1, gaia_extended
+
+trueprop = [0.69, 0.11, 0.2]	 global_coeffs = [0.3, 5.42, 4.78, 4.93, 1.07]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3098793, NpC1=1360676, NpC2=1503581
+Truth --->	C0	C1	C2	retrieval fraction (%)
+P0 		62869	21	17	98.7
+P1 		740	3801	703	91.0
+P2 		84	357	5117	87.7
+true pos. rate	99.9	72.5	92.1
+corrected t.p.r	99.8	75.7	94.4
+f1-scores: 0.993, 0.826, 0.909
+
+  # 				    property to_use weight category pba_ifnull	scale
+category 1 
+  1                gaia_extended	1		4	 1		0	1
+  2                 		UVW1	1		1	 1		0	1
+colours
+  3                        BP-RP	1		1	 2		0	1
+  4                      Gaia_AG	1		1.0	 2		0	1
+  5                    UVM2-UVW1	1		1.0	 2		0	1
+  6                    UVW2-UVW1	1		1.0	 2		0	1
+  7                    UVW1-Gmag	1		1.0	 2		0	1 
+  8             WISE_W1-GaiaGmag	1		4.0	 2		0	1
+  9                 zmag-WISE_W3	1		3.0	 2		0	1
+ 10                	  GaiaGmag-B	1		2.0	 2		0	1
+ 11                	   Kmag-UVW1	1		2.0	 2		0	1
+ 12                       UVW1-u	1		1.0	 2		0	1
+ 13                          b-v	1		1.0	 2		0	1
+ 14                    WISE_W1-z	1		1.0	 2		0	1
+ 15              WISE_W2-WISE_W1	1		1.0	 2		0	1
+ 16              WISE_W3-WISE_W2	1		1	 2		0	1
+ 17                       gPK-uP	1		4.0	 2		0	1
+ 18                      rPK-gPK	1		2.0	 2		0	1
+physical
+ 19                         gmag	1		1.0	 3		0	1
+ 20                     GaiaGmag	1		2.0	 3		0	1
+ 21           UVW2_EXTENDED_FLAG	1		1.0	 3		0	1
+ 22           UVM2_EXTENDED_FLAG	1		1.0	 3		0	1
+ 23           UVW1_EXTENDED_FLAG	1		1.0	 3		0	1
+ 24              U_EXTENDED_FLAG	1		1.0	 3		0	1
+ 25              B_EXTENDED_FLAG	1		1.0	 3		0	1
+ 26              V_EXTENDED_FLAG	1		1.0	 3		0	1
+variable
+ 27                    u_chi2red	1		1.0	 4		0	1
+ 28                    b_chi2red	1		1.0	 4		0	1
+ 29                    v_chi2red	1		1.0	 4		0	1
+ 30                   WISE_W1mag 	1		1.0	 4		0	1
+
+=======
+
+This program will classify X-ray sources from ../XMMOM_SUSS5.0_Sources_4claxbol_v4.csv using 31 of their properties:
+UVW1_AB_MAG, UVW2_EXTENDED_FLAG, UVM2_EXTENDED_FLAG, UVW1_EXTENDED_FLAG, U_EXTENDED_FLAG, B_EXTENDED_FLAG, V_EXTENDED_FLAG,
+uuchi2red, bbchi2red, vvchi2red, WI_W1mag, gmag_M, uvw1_u, b_v,
+W1_z, W2_W1, W3_W2, gPK_uP, rPK_gPK, gaiadr3_parallax_over_error, Gmag,
+BPRP, AG, UVM2mUVW1, UVW2mUVW1, UVW1mGmag, WISEW1mGmag, zmagMwiseW3,
+GmagmBmag, Km_uvw1, gaia_extended
+
+trueprop = [0.69, 0.11, 0.2]	 global_coeffs = [0.3, 5.42, 4.78, 4.93, 1.07]
+NC0=63693, NC1=4179, NC2=5837
+include plx/err
+
+NpC0=3101237, NpC1=1440167, NpC2=1421646
+Truth --->	C0	C1	C2	retrieval fraction (%)
+P0 		62911	26	15	98.8
+P1 		735	3750	627	89.7
+P2 		47	403	5195	89.0
+true pos. rate	99.9	73.4	92.0
+corrected t.p.r	99.8	77.0	94.1
+f1-scores: 0.993, 0.829, 0.915
+
+
+
+==========
+
+No BII but plx and plx/Err still included.
+
+
+1(astroconda) NoctiLuna:classificationcode kuin$ python classify_new.py 
+Using /Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode configfile.ini  
+output catalog: classification_set_v3.csv
+
+input catalog: ../XMMOM_SUSS5.0_Sources_4claxbol_v4.csv
+loading the catalog
+catalog loaded
+identifiers loaded
+This program will classify X-ray sources from ../XMMOM_SUSS5.0_Sources_4claxbol_v4.csv using 32 of their properties:
+UVW1_AB_MAG, UVW2_EXTENDED_FLAG, UVM2_EXTENDED_FLAG, UVW1_EXTENDED_FLAG, U_EXTENDED_FLAG, B_EXTENDED_FLAG, V_EXTENDED_FLAG,
+uuchi2red, bbchi2red, vvchi2red, WI_W1mag, gmag_M, uvw1_u, b_v,
+W1_z, W2_W1, W3_W2, gPK_uP, rPK_gPK, gaiadr3_parallax, gaiadr3_parallax_over_error,
+Gmag, BPRP, AG, UVM2mUVW1, UVW2mUVW1, UVW1mGmag, WISEW1mGmag,
+zmagMwiseW3, GmagmBmag, Km_uvw1, gaia_extended
+
+estimating densities...
+makedistrib:34 Classes are [0 1 2]
+/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode/makedistrib.py:112: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
+  plt.figure(p)
+densities estimated
+detecting missing values...
+total number of missing values: 105475725
+likelihoods computed for non-missing values
+likelihoods computed for missing values
+/Users/scisoft/anaconda3/lib/python3.11/site-packages/numpy/core/fromnumeric.py:3504: RuntimeWarning: Mean of empty slice.
+  return _methods._mean(a, axis=axis, dtype=dtype,
+/Users/scisoft/anaconda3/lib/python3.11/site-packages/numpy/core/_methods.py:129: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+
+classifier ready!
+
+starting classification
+00%|███████████████████████████████████████████████████████████████████████████████████████████████| 5963050/5963050 [13:27<00:00, 7386.92it/s]
+
+trueprop = [0.69, 0.11, 0.2]	 global_coeffs = [0.3, 5.42, 4.78, 4.93, 1.07]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=2950228, NpC1=1632461, NpC2=1380361
+Truth --->	C0	C1	C2	retrieval fraction (%)
+P0 		62983	39	20	98.9
+P1 		681	3713	549	88.8
+P2 		29	427	5268	90.3
+true pos. rate	99.9	75.1	92.0
+corrected t.p.r	99.7	78.9	94.0
+f1-scores: 0.993, 0.836, 0.921
+
+
+============
+
+
+(astroconda) NoctiLuna:classificationcode kuin$ python classify_new.py 
+Using /Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode configfile.ini  
+output catalog: classification_set_v3.csv
+
+input catalog: ../XMMOM_SUSS5.0_Sources_4claxbol_v2b.csv
+loading the catalog
+catalog loaded
+identifiers loaded
+This program will classify X-ray sources from ../XMMOM_SUSS5.0_Sources_4claxbol_v2b.csv using 33 of their properties:
+BII, UVW1_AB_MAG, UVW2_EXTENDED_FLAG, UVM2_EXTENDED_FLAG, UVW1_EXTENDED_FLAG, U_EXTENDED_FLAG, B_EXTENDED_FLAG,
+V_EXTENDED_FLAG, uuchi2red, bbchi2red, vvchi2red, WI_W1mag, gmag_M, uvw1_u,
+b_v, W1_z, W2_W1, W3_W2, gPK_uP, rPK_gPK, gaiadr3_parallax,
+gaiadr3_parallax_over_error, Gmag, BPRP, AG, GaiaGmgroundgmag, UVM2mUVW1, UVW2mUVW1,
+UVW1mGmag, WISEW1mGmag, zmagMwiseW3, GmagmBmag, Km_uvw1
+
+estimating densities...
+makedistrib:34 Classes are [0 1 2]
+/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode/makedistrib.py:112: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
+  plt.figure(p)
+densities estimated
+detecting missing values...
+total number of missing values: 105874375
+likelihoods computed for non-missing values
+likelihoods computed for missing values
+/Users/scisoft/anaconda3/lib/python3.11/site-packages/numpy/core/fromnumeric.py:3504: RuntimeWarning: Mean of empty slice.
+  return _methods._mean(a, axis=axis, dtype=dtype,
+/Users/scisoft/anaconda3/lib/python3.11/site-packages/numpy/core/_methods.py:129: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+
+classifier ready!
+
+starting classification
+  0%|                                                                                                               | 0/5963050 [00:00<?, ?it/s]/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode/classify_new.py:326: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  pbCat = np.array([(np.nanprod(pbgood[ic][icat[cat][~SourcesNan[isrc]]])*np.product(pbnull[ic][icat[cat][SourcesNan[isrc]]])**alpha)**(5*global_weights[cat]/(2*len(pbgood[0])+alpha*len(pbnull[0]))) for ic in range(ncla)])
+/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode/classify_new.py:512: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  pbCl, weights_cat, recordPb, alt = proba_fast(i, global_coeffs)#, recordPb, alt
+100%|███████████████████████████████████████████████████████████████████████████████████████████████| 5963050/5963050 [13:25<00:00, 7404.03it/s]
+trueprop = [0.69, 0.11, 0.2]	 global_coeffs = [0.3, 5.42, 4.78, 4.93, 1.07]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=3534595, NpC1=1200953, NpC2=1227502
+Truth --->	C0	C1	C2	retrieval fraction (%)
+P0 		63101	30	17	99.1
+P1 		572	3717	593	88.9
+P2 		20	432	5227	89.5
+true pos. rate	99.9	76.1	92.0
+corrected t.p.r	99.8	78.7	93.9
+f1-scores: 0.994, 0.835, 0.917
+
+# 	property	to_use	weight	category	pba_ifnull	scale
+                         IAUNAME	0	0.0	 0	0	0
+                             BII	1	1.0	 1	0	1
+              UVW2_EXTENDED_FLAG	1	1.0	 3	0	1
+              UVM2_EXTENDED_FLAG	1	1.0	 3	0	1
+              UVW1_EXTENDED_FLAG	1	1.0	 3	0	1
+                 U_EXTENDED_FLAG	1	1.0	 3	0	1
+                 B_EXTENDED_FLAG	1	1.0	 3	0	1
+                 V_EXTENDED_FLAG	1	1.0	 3	0	1
+                       uuchi2red	1	1.0	 4	0	1
+                       bbchi2red	1	1.0	 4	0	1
+                       vvchi2red	1	1.0	 4	0	1
+                        WI_W1mag	1	1.0	 4	0	1
+                          gmag_M	1	1.0	 3	0	1
+                          uvw1_u	1	1.0	 2	0	1
+                             b_v	1	1.0	 2	0	1
+                            W1_z	1	1.0	 2	0	1
+                           W2_W1	1	1.0	 2	0	1
+                           W3_W2	1	1	 2	0	1
+                          gPK_uP	1	4.0	 2	0	1
+                         rPK_gPK	1	2.0	 2	0	1
+                gaiadr3_parallax	1	1.0	 1	0	1
+     gaiadr3_parallax_over_error	1	1	 1	0	1
+                            Gmag	1	3.0	 3	0	1
+                            BPRP	1	1	 2	0	1
+                              AG	1	1.0	 2	0	1
+                GaiaGmgroundgmag	1	4.0	 2	0	1
+                       UVM2mUVW1	1	1.0	 2	0	1
+                       UVW2mUVW1	1	1.0	 2	0	1
+                       UVW1mGmag	1	1.0	 2	0	1
+                     WISEW1mGmag	1	4.0	 2	0	1
+                     zmagMwiseW3	1	3.0	 2	0	1
+                     GmagmBmag		1	2.0	 2	0	1
+                     Km_uvw1		1	2.0	 2	0	1
+
+
+=========
+
+(astroconda) NoctiLuna:classificationcode kuin$ python classify_new.py 
+Using /Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode configfile.ini  
+output catalog: classification_set_v3.csv
+
+input catalog: ../XMMOM_SUSS5.0_Sources_4claxbol_v2b.csv
+loading the catalog
+catalog loaded
+identifiers loaded
+This program will classify X-ray sources from ../XMMOM_SUSS5.0_Sources_4claxbol_v2b.csv using 34 of their properties:
+BII, UVW1_AB_MAG, UVW2_EXTENDED_FLAG, UVM2_EXTENDED_FLAG, UVW1_EXTENDED_FLAG, U_EXTENDED_FLAG, B_EXTENDED_FLAG,
+V_EXTENDED_FLAG, uuchi2red, bbchi2red, vvchi2red, WI_W1mag, gmag_M, uvw1_u,
+b_v, W1_z, W2_W1, W3_W2, gPK_uP, rPK_gPK, gaiadr3_parallax,
+gaiadr3_parallax_over_error, Gmag, BPRP, AG, GaiaGmgroundgmag, UVM2mUVW1, UVW2mUVW1,
+UVW1mGmag, WISEW1mGmag, zmagMwiseW3, GmagmBmag, Km_uvw1, yPKmGmag
+
+estimating densities...
+makedistrib:34 Classes are [0 1 2]
+/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode/makedistrib.py:112: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
+  plt.figure(p)
+densities estimated
+detecting missing values...
+total number of missing values: 109851307
+likelihoods computed for non-missing values
+likelihoods computed for missing values
+/Users/scisoft/anaconda3/lib/python3.11/site-packages/numpy/core/fromnumeric.py:3504: RuntimeWarning: Mean of empty slice.
+  return _methods._mean(a, axis=axis, dtype=dtype,
+/Users/scisoft/anaconda3/lib/python3.11/site-packages/numpy/core/_methods.py:129: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+
+classifier ready!
+
+starting classification
+  0%|                                                                                                               | 0/5963050 [00:00<?, ?it/s]/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode/classify_new.py:326: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  pbCat = np.array([(np.nanprod(pbgood[ic][icat[cat][~SourcesNan[isrc]]])*np.product(pbnull[ic][icat[cat][SourcesNan[isrc]]])**alpha)**(5*global_weights[cat]/(2*len(pbgood[0])+alpha*len(pbnull[0]))) for ic in range(ncla)])
+/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/htranin/classificationcode/classify_new.py:512: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  pbCl, weights_cat, recordPb, alt = proba_fast(i, global_coeffs)#, recordPb, alt
+100%|███████████████████████████████████████████████████████████████████████████████████████████████| 5963050/5963050 [13:24<00:00, 7415.71it/s]
+trueprop = [0.69, 0.11, 0.2]	 global_coeffs = [0.3, 5.42, 4.78, 4.93, 1.07]
+NC0=63693, NC1=4179, NC2=5837
+NpC0=4154733, NpC1=607519, NpC2=1200798
+Truth --->	C0	C1	C2	retrieval fraction (%)
+P0 		63279	23	40	99.4
+P1 		405	3680	424	88.1
+P2 		9	476	5373	92.1
+true pos. rate	99.9	81.6	91.7
+corrected t.p.r	99.7	83.7	93.6
+f1-scores: 0.995, 0.858, 0.928
+
+# 	property	to_use	weight	category	pba_ifnull	scale
+                         IAUNAME	0	0.0	 0	0	0
+                          SRCNUM	0	0	 0	0	1
+                              RA	0	0	 0	0	1
+                             DEC	0	0	 0	0	1
+                          POSERR	0	0	 0	0	1
+                             LII	0	1.0	 1	0	1
+                             BII	1	1.0	 1	0	1
+                     UVW2_AB_MAG	0	0	 0	0	1
+                     UVM2_AB_MAG	0	0	 0	0	1
+                     UVW1_AB_MAG	1	1	 0	1	1
+                        U_AB_MAG	0	0	 0	0	1
+                        B_AB_MAG	0	0	 0	0	1
+                        V_AB_MAG	0	0	 0	0	1
+              UVW2_EXTENDED_FLAG	1	1.0	 3	0	1
+              UVM2_EXTENDED_FLAG	1	1.0	 3	0	1
+              UVW1_EXTENDED_FLAG	1	1.0	 3	0	1
+                 U_EXTENDED_FLAG	1	1.0	 3	0	1
+                 B_EXTENDED_FLAG	1	1.0	 3	0	1
+                 V_EXTENDED_FLAG	1	1.0	 3	0	1
+                       w2chi2red	0	1.0	 4	0	1
+                       m2chi2red	0	1.0	 4	0	1
+                       w1chi2red	0	1.0	 4	0	1
+                       uuchi2red	1	1.0	 4	0	1
+                       bbchi2red	1	1.0	 4	0	1
+                       vvchi2red	1	1.0	 4	0	1
+                        WI_W1mag	1	1.0	 4	0	1
+                        WI_W2mag	0	0	 0	0	1
+                        WI_W3mag	0	0	 0	0	1
+                        WI_W4mag	0	0	 0	0	1
+                          gmag_M	1	1.0	 3	0	1
+                        gPKmag_M	0	0	 0	0	1
+                          umag_M	0	0	 0	0	1
+                          vmag_M	0	0	 0	0	1
+                          rmag_M	0	0	 0	0	1
+                        rPKmag_M	0	0	 0	0	1
+                          imag_M	0	0	 0	0	1
+                        iPKmag_M	0	0	 0	0	1
+                          zmag_M	0	0	 0	0	1
+                        zPKmag_M	0	0	 0	0	1
+                          ymag_M	0	0	 0	0	1
+                        yPKmag_M	0	0	 0	0	1
+                          jmag_M	0	0	 0	0	1
+                          hmag_M	0	0	 0	0	1
+                          kmag_M	0	0	 0	0	1
+                          uvw1_u	1	1.0	 2	0	1
+                             b_v	1	1.0	 2	0	1
+                            W1_z	1	1.0	 2	0	1
+                           W2_W1	1	1.0	 2	0	1
+                           W3_W2	1	1	 2	0	1
+                           W4_W3	0	1.0	 2	0	1
+                          gPK_uP	1	2.0	 2	0	1
+                         rPK_gPK	1	1.0	 2	0	1
+                           class	0	0	 0	0	1
+                gaiadr3_parallax	1	1.0	 1	0	1
+     gaiadr3_parallax_over_error	1	1	 1	0	1
+                      gaiadr3_pm	0	0	 0	0	1
+                            Gmag	1	1.0	 2	0	1
+                           BPmag	0	0	 0	0	1
+                           RPmag	0	0	 0	0	1
+                            BPRP	1	1	 2	0	1
+              phot_variable_flag	0	0.5	 4	0	1
+                              AG	1	1.0	 2	0	1
+                GaiaGmgroundgmag	1	2.0	 4	0	1
+                       UVW2mUVM2	0	1.0	 2	0	1
+                       UVM2mUVW1	1	1.0	 2	0	1
+                       UVW2mUVW1	1	1.0	 2	0	1
+                       UVW1mGmag	1	1.0	 2	0	1
+                     WISEW1mGmag	1	1.0	 3	0	1
+                     zmagMwiseW3	1	1.0	 3	0	1
+                     GmagmBmag		1	1.0	 2	0	1
+                     Km_uvw1		1	1.0	 2	0	1
+                     yPKmGmag		0	1.0	 2	0	1
