@@ -1,0 +1,93 @@
+Procedures and scripts used to create the augmented SUSS catalogue.
+
+Main tool TOPCAT version 4.8-4
+
+Initial activities to correlate SUSS with individual catalogues for subsequent
+combinging and merging.
+
+Used CDS Upload X-Match in TOPCAT to correlate XMM-OM-SUSS5.0.fits with
+PanSTARRS DR1 (catalogue name: II/349/ps1), 3 arcsecond search radius, nearest
+match to each source in SUSS. Output file: SUSS_PS.fits
+
+Used CDS Upload X-Match in TOPCAT to correlate XMM-OM-SUSS5.0.fits with
+Skymapper DR1.1 (catalogue name: II/358/smss), 3 arcsecond search radius, nearest
+match to each source in SUSS. Output file: SUSS_SM.fits
+
+Used CDS Upload X-Match in TOPCAT to correlate XMM-OM-SUSS5.0.fits with
+various UKIDSS and VISTA surveys detailed below, 3 arcsecond search radius, 
+nearest match to each source in SUSS. 
+UKIDSS DR9 LAS: (catalogue name: II/319/las9)    Output file: SUSS_LAS.fits
+UKIDSS DR9 GCS: (catalogue name: II/319/gcs9)    Output file: SUSS_GCS.fits
+UKIDSS DR9 DXS: (catalogue name: II/319/dxs9)    Output file: SUSS_DXS.fits
+UKIDSS DR6 GPS: (catalogue name: II/316/gps6)    Output file: SUSS_GPS.fits
+VIKING DR2:     (catalogue name: II/343/viking2) Output file: SUSS_VIK.fits
+VHS    DR5:     (catalogue name: II/367/vhs_dr5) Output file: SUSS_VHS.fits
+
+Used CDS Upload X-Match in TOPCAT to correlate XMM-OM-SUSS5.0.fits with
+ALLWISE version 16-Feb-2021 (catalogue name: II/328/allwise), 
+3 arcsecond search radius, nearest match to each source in SUSS. 
+Output file: SUSS_WIS.fits
+
+Subsequenctly to these matches, processing and merging of UKIDSS and VISTA 
+catalogues takes place. 
+
+For UKIDSS, Petrosian magnitudes  not present in the upload-CDS-xmatch
+catalogue functionality) are added to the UKIDSS
+photometry. This is achieved using a multi-cone-search, correlating only those 
+sources with UKIDSS counterparts to keep matching time within reasonable 
+boundaries. Surveys are then combined into one file, with one set of 
+UKIRT magnitudes. Priority sequence for selecting magnitudes 
+(highest to lowest): GCS DXS GPS LAS.
+This is encapsulated in script UKIRT_augment.csh
+Output: SUSS_UK_pet.fits
+
+For VISTA, surveys are merged into one file, with one set of VISTA magnitudes.
+Prirority sequence for selecting magnitudes (highest to lowest): Viking VHS.
+This is encapsulated in script VISTA_merge.csh
+Output: SUSS_VI.fits
+
+Then, PannSTARS, Skymapper, UKIDSS, VISTA and WISE catalogue photometry are merged into a single augmented SUSS catalogue.
+Script: concat_data_v2.csh
+Output: SUSS_aug_V3.fits
+
+Then Vega magnitudes are converted to AB using AB_mag = Vega_mag + AB_offset
+
+Pan-Starrs: AB based.
+Source: https://outerspace.stsci.edu/display/PANSTARRS/PS1+Kron+photometry+of+extended+sources
+
+Skymapper: AB based.
+Source: Wolf et al. 2018, PASA, 35, 10
+
+UKIDSS: VEGA based.
+Source: Hewett, Warren, Legett, Hodgkin, 2006, MNRAS, 367, 454
+
+Band    AB_offset
+Z       0.528
+Y       0.634
+J       0.938
+H       1.379
+K       1.900
+
+
+VISTA: VEGA based.
+Source: http://casu.ast.cam.ac.uk/surveys-projects/vista/technical/filter-set
+
+Band    AB_offset
+Z       0.502
+Y       0.600
+J       0.916
+H       1.366
+K       1.827
+
+WISE: VEGA based.
+Source: https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
+
+Band    AB_offset
+W1      2.699
+W2      3.339
+W3      5.174
+W4      6.620
+
+Script: Vega_to_AB.csh
+Output: SUSS_aug_V4.fits
+
