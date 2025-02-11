@@ -1,0 +1,111 @@
+Augmented SUSS catalogue, version 1.0.
+README file version 1.0.
+
+Author: Mat Page MSSL
+
+Description:
+
+The augmented SUSS catalogue contains the primary table from
+XMM-OM-SUSS5.0.fits with additional columns containing photometry from ground
+and space based large-sky-area surveys. SUSS sources were matched to the
+external catalogues with a matching radius of 3 arc seconds to the SUSS
+positions, taking the closest match in the external catalogue to the SUSS
+coordinates within the search radius. The "CDS Upload X-Match" feature was used
+within Topcat to do the matching. The resulting matched files were then
+post-processed using Stilts to combine the various catalogues and remove
+superfluous columns.  As part of this process, the multiple measurements in
+various UKIDSS catalogues were reduced to a single set of UKIRT magnitudes for
+each source. Similarly, VISTA Viking and VHS surveys were combined such that
+there is only one set of VISTA magnitudes for each source.
+
+The surveys used for version 1.0 augmented catalogue are:
+
+Optical:
+Pan-STARRS DR1
+SkyMapper DR1.1
+
+Near-infrared:
+UKIDSS (GPS DR6, DXS DR9, GCS DR9, LAS DR9)
+VISTA (VIKING DR2, VHS DR5)
+
+Mid- and far-infrared:
+AllWISE (version 16/02/2021)
+
+List of additional columns in Version 1.0 of the augmented SUSS catalogue.
+These columns are in addition to the original XMM-OM-SUSS5.0 columns.
+
+PS_gmag               Pan-STARRS PSF-based g magnitude
+PS_e_gmag             Pan-STARRS uncertainty on PSF-based g magnitude
+PS_gKmag              Pan-STARRS Kron g magnitude
+PS_e_gKmag            Pan-STARRS uncertainty on Kron g magnitude
+PS_rmag               Pan-STARRS PSF-based r magnitude
+PS_e_rmag             Pan-STARRS uncertainty on PSF-based r magnitude
+PS_rKmag              Pan-STARRS Kron r magnitude
+PS_e_rKmag            Pan-STARRS uncertainty on Kron r magnitude
+PS_imag               Pan-STARRS PSF-based i magnitude
+PS_e_imag             Pan-STARRS uncertainty on PSF-based i magnitude
+PS_iKmag              Pan-STARRS Kron i magnitude
+PS_e_iKmag            Pan-STARRS uncertainty on Kron i magnitude
+PS_zmag               Pan-STARRS PSF-based z magnitude
+PS_e_zmag             Pan-STARRS uncertainty on PSF-based z magnitude
+PS_zKmag              Pan-STARRS Kron z magnitude
+PS_e_zKmag            Pan-STARRS uncertainty on Kron z magnitude
+PS_ymag               Pan-STARRS PSF-based y magnitude
+PS_e_ymag             Pan-STARRS uncertainty on PSF-based y magnitude
+PS_yKmag              Pan-STARRS Kron y magnitude
+PS_e_yKmag            Pan-STARRS uncertainty on Kron y magnitude
+SM_umag               SkyMapper PSF-based u magnitude
+SM_e_umag             SkyMapper uncertainty on PSF-based u magnitude
+SM_uPmag              SkyMapper Petrosian u magnitude
+SM_e_uPmag            SkyMapper uncertainty on Petrosian u magnitude
+SM_vmag               SkyMapper PSF-based v magnitude
+SM_e_vmag             SkyMapper uncertainty on PSF-based v magnitude
+SM_vPmag              SkyMapper Petrosian v magnitude
+SM_e_vPmag            SkyMapper uncertainty on Petrosian v magnitude
+SM_gmag               SkyMapper PSF-based g magnitude
+SM_e_gmag             SkyMapper uncertainty on PSF-based g magnitude
+SM_gPmag              SkyMapper Petrosian g magnitude
+SM_e_gPmag            SkyMapper uncertainty on Petrosian g magnitude
+SM_rmag               SkyMapper PSF-based r magnitude
+SM_e_rmag             SkyMapper uncertainty on PSF-based r magnitude
+SM_rPmag              SkyMapper Petrosian r magnitude
+SM_e_rPmag            SkyMapper uncertainty on Petrosian r magnitude
+SM_imag               SkyMapper PSF-based i magnitude
+SM_e_imag             SkyMapper uncertainty on PSF-based i magnitude
+SM_iPmag              SkyMapper Petrosian i magnitude
+SM_e_iPmag            SkyMapper uncertainty on Petrosian i magnitude
+SM_zmag               SkyMapper PSF-based z magnitude
+SM_e_zmag             SkyMapper uncertainty on PSF-based z magnitude
+SM_zPmag              SkyMapper Petrosian z magnitude
+SM_e_zPmag            SkyMapper uncertainty on Petrosian z magnitude
+UK_zmag               UKIDSS aperture (PSF-corrected) z magnitude
+UK_e_zmag             UKIDSS uncertainty on pperture (PSF-corrected) z magnitude
+UK_ymag               UKIDSS aperture (PSF-corrected) y magnitude
+UK_e_ymag             UKIDSS uncertainty on pperture (PSF-corrected) y magnitude
+UK_jmag               UKIDSS aperture (PSF-corrected) j magnitude
+UK_e_jmag             UKIDSS uncertainty on pperture (PSF-corrected) j magnitude
+UK_hmag               UKIDSS aperture (PSF-corrected) h magnitude
+UK_e_hmag             UKIDSS uncertainty on pperture (PSF-corrected) h magnitude
+UK_kmag               UKIDSS aperture (PSF-corrected) k magnitude
+UK_e_kmag             UKIDSS uncertainty on pperture (PSF-corrected) k magnitude
+VI_zmag               VISTA Petrosian z magnitude
+VI_e_zmag             VISTA uncertainty on Petrosian z magnitude
+VI_ymag               VISTA Petrosian y magnitude
+VI_e_ymag             VISTA uncertainty on Petrosian y magnitude
+VI_jmag               VISTA Petrosian j magnitude
+VI_e_jmag             VISTA uncertainty on Petrosian j magnitude
+VI_hmag               VISTA Petrosian h magnitude
+VI_e_hmag             VISTA uncertainty on Petrosian h magnitude
+VI_kmag               VISTA Petrosian k magnitude
+VI_e_kmag             VISTA uncertainty on Petrosian k magnitude
+WI_W1mag              WISE W1 band magnitude
+WI_e_W1mag            WISE uncertainty on W1 band magnitude
+WI_W2mag              WISE W2 band magnitude
+WI_e_W2mag            WISE uncertainty on W2 band magnitude
+WI_W3mag              WISE W3 band magnitude
+WI_e_W3mag            WISE uncertainty on W3 band magnitude
+WI_W4mag              WISE W4 band magnitude
+WI_e_W4mag            WISE uncertainty on W4 band magnitude
+
+
+

@@ -1,0 +1,192 @@
+I need to augment the SUSS v5 catalogue with all the extra photometry needed 
+to classify the XMM-OM sources.
+
+Wish list:
+
+1) Pan-STARRS 
+Using topcat. Match to closest pann-starrs source within 3". Pan-STARRS DR1 
+is fine, since it contains the 3-pi catalogue (north of -30 degrees).
+
+In topcat multi-cone, I select "The Pan-STARRS release 1 (PS1) Survey - DR1
+http://vizier.cds.unistra.fr/viz-bin/conesearch/II/349/ps1?
+I choose New joined table, one row per input row.
+
+
+Timing: 9 million sources, at 1000 per minute will take 9,000 minutes, or 150 hours, or 6.25 days. This is OK, but a bit risky. I might consider doing it in chunks instead.
+
+Experiments:
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=out.fits icmd='select (N_SUMMARY>0)&&(N_SUMMARY<=1)&&(DEC>=-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+date
+
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=out.fits icmd='rowrange 1 1' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5
+date
+
+stilts taking too long. But old version of stilts. That's no good! Use topcat -stilts to use implimentation in latest topcat version while I wait to update stilts.
+
+Here's a fully-functional script. Only run for sources with Dec >= -30.0
+The date calls are just so that I can judge progress from the terminal.
+
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=SUSS_PS1.fits icmd='select (N_SUMMARY>0)&&(N_SUMMARY<=1000)&&(DEC>=-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=SUSS_PS2.fits icmd='select (N_SUMMARY>1000)&&(N_SUMMARY<=2000)&&(DEC>=-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=SUSS_PS3.fits icmd='select (N_SUMMARY>2000)&&(N_SUMMARY<=3000)&&(DEC>=-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=SUSS_PS4.fits icmd='select (N_SUMMARY>3000)&&(N_SUMMARY<=4000)&&(DEC>=-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=SUSS_PS5.fits icmd='select (N_SUMMARY>4000)&&(N_SUMMARY<=5000)&&(DEC>=-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=SUSS_PS6.fits icmd='select (N_SUMMARY>5000)&&(N_SUMMARY<=6000)&&(DEC>=-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=SUSS_PS7.fits icmd='select (N_SUMMARY>6000)&&(N_SUMMARY<=7000)&&(DEC>=-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=SUSS_PS8.fits icmd='select (N_SUMMARY>7000)&&(N_SUMMARY<=8000)&&(DEC>=-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=SUSS_PS9.fits icmd='select (N_SUMMARY>8000)&&(N_SUMMARY<=9000)&&(DEC>=-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=SUSS_PS10.fits icmd='select (N_SUMMARY>9000)&&(N_SUMMARY<=10000)&&(DEC>=-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+date
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=SUSS_PS11.fits icmd='select (N_SUMMARY>10000)&&(N_SUMMARY<=11000)&&(DEC>=-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='http://gsss.stsci.edu/webservices/vo/ConeSearch.aspx?CAT=PS1DR1&' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+date
+
+all encoded in pan_starrs.csh
+
+Update: now I've discovered the CDS Upload X-Match in topcat, I can do the 
+whole lot in one go.
+
+SUSS_PS.fits
+
+2) Skymapper
+
+Skymapper page says use this url for DR2:
+https://skymapper.anu.edu.au/sm-cone/public/query?
+So, I'll try to run this in stilts.
+
+topcat -stilts coneskymatch in=XMM-OM-SUSS5.0.fits.gz ifmt=fits out=out.fits icmd='select (N_SUMMARY>10615)&&(N_SUMMARY<=10616)&&(DEC<-30.0)' find=each ra=RA dec=DEC servicetype=cone serviceurl='https://skymapper.anu.edu.au/sm-cone/public/query?' sr=0.000833333 verb=3 parallel=5 >& /dev/null
+
+It's much slower. But at least there aren't so many objects to query on below dec of -30 degrees. I should be able to run this all in parallel to the pan-starrs process.
+
+Implemented in skymapper.csh
+
+Result: it doesn't work. Always times out or freezes before it gets all the 
+matches. Waste of time. Use the smaller skymapper catalogue instead.
+Put the vizier address into skymapper.csh instead of the anu address.
+
+http://vizier.cds.unistra.fr/viz-bin/conesearch/II/358/smss?
+
+Still taking an eternity.
+Solution: CDS upload X-match in topcat. 3", skymapper DR1.1
+It should be much, much, much faster.
+
+SUSS_SM.fits contains the results!
+
+
+3) UKIDSS and VISTA.
+Using topcat. Match to closest UKIDSS DR10 source within 3". There are a bunch of different cone search queries depending on which survey the source is in.
+
+The LAS covers the most sky, so I should start with that. It covers only dec > -10 up to dec=60.
+
+http://wfaudata.roe.ac.uk/ukidssDR10-dsa/DirectCone?DSACAT=UKIDSS_DR10&DSATAB=udsSource&
+http://wfaudata.roe.ac.uk/ukidssDR10-dsa/DirectCone?DSACAT=UKIDSS_DR10&DSATAB=gcsSource&
+http://wfaudata.roe.ac.uk/ukidssDR10-dsa/DirectCone?DSACAT=UKIDSS_DR10&DSATAB=dxsSource&
+http://wfaudata.roe.ac.uk/ukidssDR10-dsa/DirectCone?DSACAT=UKIDSS_DR10&DSATAB=lasSource&
+
+Set up ukidss.csh to gather the data I need for this.
+
+Failed. ukidss.csh failed each run because of some error.
+
+Solution: CDS upload X-match in topcat. 3", 
+UKIDSS DR9 LAS: SUSS_LAS.fits
+UKIDSS DR9 GCS: SUSS_GCS.fits
+UKIDSS DR9 DXS: SUSS_DXS.fits
+UKIDSS DR6 GPS: SUSS_GPS.fits
+VIKING DR2:     SUSS_VIK.fits
+VHS    DR5:     SUSS_VHS.fits
+
+
+4) WISE
+
+Looking at WISE data release pages, it looks like the ALLWISE release 
+(16 Feb 2021 served in CDS upload X-Match) is the best/latest one to go for.
+
+ALLWISE:        SUSS_WIS.fits
+
+***************************************************************************
+
+Now to combine it all into one table.
+
+PannSTARRS:
+
+I don't have a stellarity indicator in the table, so I will include the magnitudes (are these PSF mags?) and Kron magnitudes.
+
+ALL PanSTARRS properties prefixed PS_
+
+SkyMapper:
+
+I presume that "ClassStar" is a stellarity indicator. I've called it 
+SM_stellarity.
+
+SkyMapper has uvgriz photometry, in PSF and Petrosian. I've included both.
+
+All SkyMapper properties prefixed SM_
+
+
+****************************************************************************
+Combine UKIDSS surveys into one file, one set of UKIRT magnitudes.
+Processing listed in UKIRT_merge.csh
+
+Preference sequence for selecting magnitudes: GCS DXS GPS LAS
+
+Now to prioritize UKIDSS magnitudes. Logical processing in stilts, 
+something like:
+
+"( (GPS_kmag > 0.0) ? GPS_kmag : GP2_kmag )"
+
+topcat -stilts tpipe in=temp_in.fits out=temp.fits cmd='addcol -units mag UK_kmag "( (GPS_kmag > 0.0) ? GPS_kmag : GP2_kmag )"'
+should make a column UK_kmag which is GPS_kmag if that is > 0 or 
+GP2_kmag if it is not (more sophisticated version of this in UKIRT_merge.csh).
+
+Sept 2022. Would be useful to add the petrosian magnitudes to the UKIDSS
+photometry. Problem: not present in the upload-CDS-xmatch
+functionality. Solution: correlate only those sources with UKIDSS counterparts
+(in the corresponding survey) to the UKIDSS datasets via cone search to add the
+petrosian magnitude columns.
+
+UKIRT_augment.csh 
+first gets the extra columns with petrosian magnitudes and then replicates the 
+merging that happened in UKIRT_merge.csh for the petrosian magnitudes.
+
+****************************************************************************
+Combine VISTA surveys into one file, one set of UKIRT magnitudes.
+Processing listed in VISTA_merge.csh
+It's a bit simpler as there are only 2 VISTA surveys (at present).
+
+Preference sequence for selecting magnitudes: Viking VHS
+
+Output: SUSS_VI.fits
+
+Open issue: I don't seem to be able to get the conditional statement to work
+properly with Mclass. The following should use Viking Mclass if it is good, VHS Mclass if it is not. But in reality it only retains Viking Mclass values.
+
+
+echo Prioritize class.
+date
+echo 
+topcat -stilts tpipe in=temp_in.fits out=temp.fits \
+cmd='\
+addcol VI_class "( (VIK_class < 1000) ? VIK_class : VHS_class )";\
+delcols "VIK_class VHS_class"'
+cp temp.fits temp_in.fits
+
+
+I should try to fix this at some later point. For now, I've removed the VHS_class and VIK_class at the beginning of the VISTA processing.
+
+***********************************************************************
+
+Final step in concat_data_v2.csh (or v1 for earlier version).
+
+
+
