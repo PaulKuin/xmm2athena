@@ -61,7 +61,7 @@ echo
 echo Add UKIDSS next.
 date
 echo 
-topcat -stilts tmatch2 in1=temp_in.fits ifmt1=fits in2=SUSS_UK.fits out=temp.fits matcher=exact+exact values1='SRCNUM OBSID' values2='SRCNUM2 OBSID2' find=best1 join=all1 fixcols=none icmd2='colmeta -name SRCNUM2 "SRCNUM"; colmeta -name OBSID2 "OBSID"; \
+topcat -stilts tmatch2 in1=temp_in.fits ifmt1=fits in2=SUSS_UK_pet.fits out=temp.fits matcher=exact+exact values1='SRCNUM OBSID' values2='SRCNUM2 OBSID2' find=best1 join=all1 fixcols=none icmd2='colmeta -name SRCNUM2 "SRCNUM"; colmeta -name OBSID2 "OBSID"; \
 keepcols "SRCNUM2 OBSID2 UK_zmag UK_e_zmag UK_ymag UK_e_ymag UK_jmag UK_e_jmag UK_hmag UK_e_hmag UK_kmag UK_e_kmag UK_zPmag UK_e_zPmag UK_yPmag UK_e_yPmag UK_jPmag UK_e_jPmag UK_hPmag UK_e_hPmag UK_kPmag UK_e_kPmag"' ocmd='delcols "SRCNUM2 OBSID2 GroupID GroupSize Separation"'
 cp temp.fits temp_in.fits
 echo 
@@ -75,7 +75,7 @@ echo
 echo Finally, add WISE.
 date
 echo 
-topcat -stilts tmatch2 in1=temp_in.fits ifmt1=fits in2=SUSS_WIS.fits out=SUSS_aug_V2.fits matcher=exact+exact values1='SRCNUM OBSID' values2='SRCNUM2 OBSID2' find=best1 join=all1 fixcols=none icmd2='colmeta -name SRCNUM2 "SRCNUM"; colmeta -name OBSID2 "OBSID"; \
+topcat -stilts tmatch2 in1=temp_in.fits ifmt1=fits in2=SUSS_WIS.fits out=SUSS_aug_V3.fits matcher=exact+exact values1='SRCNUM OBSID' values2='SRCNUM2 OBSID2' find=best1 join=all1 fixcols=none icmd2='colmeta -name SRCNUM2 "SRCNUM"; colmeta -name OBSID2 "OBSID"; \
 colmeta -name WI_W1mag "W1mag"; \
 colmeta -name WI_e_W1mag "e_W1mag"; \
 colmeta -name WI_W2mag "W2mag"; \
