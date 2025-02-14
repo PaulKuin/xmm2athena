@@ -1,0 +1,746 @@
+
+
+process the catalogs -- notes 
+
+   Processing : locating the high proper motion sources by matching with Gaia eDR3
+
+%load_ext autoreload
+autoreload 2
+
+You might also find the Table hstack() function useful. This will let you add 
+all the columns of one table into another table. 
+
+  https://docs.astropy.org/en/stable/table/operations.html#id6
+
+In your case this might look like:
+
+from astropy.table import hstack
+tab = hstack([tab, c1])
+
+note: way too slow!
+   
+   # writing to a FITS table : Column definitions 
+   cols = summary.columns
+   c1 = fits.Column(name='TDB_MINUS_TT', array=col_tdb_minus,unit='s', format='E')
+   c2 =  ioascii.read('/data/catalogs/suss5.0_summary_col_tdb_minus_tt.dat')
+   cols.add_col(c2['col_tdb_minus'])
+   
+   # make a new fits bintable extension after reading in the ascii table and 
+   # defining the columns in cols, the data are in tab (TBD)
+
+note: getting the Gaia EDR3 with high PM (full sky)
+
+SELECT TOP 12001000 gaia_source.source_id,gaia_source.ra,gaia_source.ra_error,gaia_source.dec,
+gaia_source.dec_error,gaia_source.parallax,gaia_source.parallax_over_error,gaia_source.pm,
+gaia_source.pmra,gaia_source.pmra_error,gaia_source.pmdec,gaia_source.pmdec_error,
+gaia_source.ruwe,gaia_source.phot_g_mean_flux,gaia_source.phot_g_mean_flux_over_error,
+gaia_source.phot_g_mean_mag,gaia_source.phot_bp_mean_flux_over_error,
+gaia_source.phot_bp_mean_mag,gaia_source.phot_rp_mean_flux_over_error,
+gaia_source.phot_rp_mean_mag,gaia_source.bp_rp,gaia_source.dr2_radial_velocity,
+gaia_source.dr2_radial_velocity_error,gaia_source.l,gaia_source.b
+FROM gaiaedr3.gaia_source 
+WHERE (gaiaedr3.gaia_source.pm>=25)
+
+===
+
+14 June 2022 https://gea.esac.esa.int/archive/ log in 
+gaiadr3 from lite catalogue all sources with PM>25
+
+SELECT TOP 30000000 * FROM gaiadr3.gaia_source_lite
+WHERE (gaiadr3.gaia_source_lite.pmra*gaiadr3.gaia_source_lite.pmra+gaiadr3.gaia_source_lite.pmdec*gaiadr3.gaia_source_lite.pmdec) > 625
+
+=> gaiadr3_highpm
+
+====
+
+2 Mar 2023 https://gea.esac.esa.int/archive/ log in 
+
+:retrieve all gaia with PM > 2mas/yr Epoch 2016, for matching our source to gaiadr3 ID. 
+
+SELECT TOP 30100100 gaia_source.designation,gaia_source.source_id,gaia_source.ra,
+gaia_source.ra_error,gaia_source.dec,gaia_source.dec_error,gaia_source.parallax,
+gaia_source.parallax_over_error,gaia_source.pm,gaia_source.pmra,gaia_source.pmra_error,
+gaia_source.pmdec,gaia_source.pmdec_error FROM gaiadr3.gaia_source WHERE (gaiadr3.gaia_source.pm>=10.0)
+
+=> gaiadr3_pmgt2
+
+==== from notebook 1
+28 june 23
+
+New match of the new SUSS single source result V2 which was rematched to the previous 
+version match in order to keep the better Gaia match from the Xmatch site.   
+(TBD file name used)XMMOM_SUSS5.0_Sources_v0_1xGaiaDR3.fits
+(2)XMM-OM-SUSS5.0_singlerecs_v2.fits
+(3)XMMOM_highpm_probaAB_gt_half.fits
+
+The reason to do it again is that the initial match of the high PM sources came back with 
+Gaia source_ids. 
+When I added further Gaia DR3 columns to the whole SUSS, I used a match on position, but
+some of the high PM sources were then mismatched to another source. So first we split off 
+the high PM sources, and match them using the Gaia source_id. However, we need to choose 
+how to do that. We have the downloaded subset of Gaia DR3 with pm > 10, but that has 
+not all the required columns. The other way is to match using TAP on the whole 
+gaiadr3.gaia_source catalogue.
+
+Using TopCat we split  XMM-OM-SUSS5.0_singlerecs_v2xhighpm_probabGThalf.fits into 
+(1) temp_pm_sources.fits (66,557 sources)  
+(2) temp_nopm_sources.fits (5,896,514 sources)
+
+match (1) using TAP on gaiadr3.gaia_source : 
+====
+26 June 2023 NPMK
+
+New version April-June 2023
+
+- new code for SUSS6 produced to add proper motion effects (sent to Simon)
+[ a] match2gaiadr3_positions2Epoch
+[ b] addEpoch2Source.sh (previously developed for this project)
+The code works by sorting the input first for observations done 
+within a range of Epochs (typically 0.1 year); then matching the 
+selected subset to Gaia DR3 sources with PM > 25 mas/year which 
+were placed on the relevant Epoch. Matching is done using STILTS.
+ 
+This is more efficient but less accurate then the method used for this project 
+using the Xmatch website, but that requires uploading and downloading the data.
+Xmatch advantage is the consideration of how crowded the field is on the 
+possibility of mis-match. 
+
+- software to produce the single-source catalogue in two steps, 
+   - match sources based on their IAUNAME
+   - match results on PM, and plx_over_error being the same
+   
+The software was changed to derive new statistics, namely chi-squared, skew. 
+Also, two fields were added capturing OBSIDS and Epochs of the input. 
+The latter two are the same nearby objects unless at the edge of an observation. 
+The magnitude is now the median value, while the extreme is the minimum magnitude 
+in the input, so maximum flux. 
+
+The single source processing thus produces two files, one with significant PM and 
+one where the objects are not reported in Gaia DR3 as having PM>25 mas/yr. Only the 
+first set has a Gaia DR3 source_id match. 
+
+- In the single source catalogue there are sources with plx < 0 or with large 
+positional uncertainties. Examination of the histograms of these data with separation 
+of source and Gaia DR3 match showed requiring plx > 0 is consistent with the 
+expected drop off of the number of matches with separation, while the excluded 
+set with plx < 0 did not fall off with separation. 
+[positional errors? ]
+
+The matched sources with plx>0 are considered to be of higher quality.
+
+==== 
+30 Jun 2023 TopCat 
+
+part1: match only pmcat.gaiadr3_source_id from TAP_UPLOAD (temp_pm_sources.fits)
+
+SELECT pmcat.*, refcat.source_id, 
+refcat.pm,refcat.parallax_over_error,
+refcat.phot_g_mean_flux_over_error,
+refcat.phot_g_mean_mag,
+refcat.phot_bp_mean_flux_over_error,
+refcat.phot_bp_mean_mag,
+refcat.phot_rp_mean_flux_over_error,
+refcat.phot_rp_mean_mag,
+refcat.bp_rp,
+refcat.bp_g,
+refcat.g_rp,
+refcat.radial_velocity,
+refcat.radial_velocity_error,
+refcat.phot_variable_flag,
+refcat.classprob_dsc_combmod_galaxy,
+refcat.classprob_dsc_combmod_quasar,
+refcat.classprob_dsc_combmod_star,
+refcat.non_single_star
+FROM gaiadr3.gaia_source AS refcat
+RIGHT OUTER JOIN TAP_UPLOAD.t5 AS pmcat
+ON refcat.source_id=pmcat.gaiadr3_source_id
+
+
+This works only if using the source_id in the upload temp_pm_sources.fits. 
+Afterwards, match locally with the full input temp_pm_sources using Topcat
+XMMOM_SUSS5.0_SourcesV2part1.fits => 66,557 sources
+
+*** NEXT part2: the sources with no PM match. 
+
+unfortunately, for matching this with position error is not possible (I would 
+need a local copy of Gaia DR3 for STILTS)
+
+So I did a TopCat match CDSxmatch on position 'best' with radius 0.9 arcsec for 
+temp_nopm_sources.fits with gaiadr3; only keep columns like part1 above. 
+
+
+Further selection is needed: some of the sources in the high PM set (1) are likely 
+not good matches. After plotting the histograms it became clear that selecting 
+on the parallax_over_error also removed sources with bad positional match:
+-- Keep only those with parallax_over_error > 0 which removes 
+
+There remain now some sources with not any Gaia DR3 match 
+5,896,514 in temp_nopm_sources.fits, and 4,534,565 matches in XMMOM_SUSS5.0_SourcesV2part2.fits, so 
+4,534,565
+--------- -
+1,361,949 sources do _not_ have a match in GaiaDR3 within 1.5 arcsec.  
+
+
+Proposed pmflag:
+pmflag : 1 for all matches in part1 with parallax_ovser_error > 3 based on position error per object
+         2 for matched in part1 otherwise ; also based on position error per object
+         3 for part2 with match parallax_over_error > 3 with position within 1.5 arcsec 
+         4 for part2 otherwise with position within 1.5 arcsec
+         5 for no Gaia DR3 match found within 1.5 arcsec 
+         
+         
+merging  to  XMMOM_SUSS5.0_SourcesV2part1+2   (5,963,071 sources)     
+=====
+reporting July 5, 2023 
+
+starting with (3) suss_gaia_epic/XMMOM_SUSS5.0_Sources_v2part1+2.fits:
+
+I added a new column 'chi2red' defined as 
+
+median([UVW2_CHISQ/UVW2_NOBS , UVM2_CHISQ/UVM2_NOBS, UVW1_CHISQ/UVW1_NOBS. U_CHISQ/U_NOBS, B_CHISQ/B_NOBS, V_CHISQ/V_NOBS])
+
+This distribution as a log(chi2red peaks at a value of around 0.5. I define therefore a subset with 
+possibly variability of interest as chi2red > 2, which has 214,229 rows/sources, that is 4% of all sources. 
+I save this as
+ (4) suss_gaia_epic/source_v2_chi2redGT2.fits
+
+****** After discussion with Mat, he thinks that we should select on the extreme value of the reduce ChiSq. 
+
+****** On hindsight (July 18) I think we need to select also those with the higher number of observations in anyone of the filters, 
+       because doing more (automated) analysis with, e.g., wavelets or power spectrum needs a decent number of points to fit. 
+
+changed definition to chisq/(N-1)
+
+Next I use TopCat match (4) to (5) XMM_SUSS5.0_Sources_v0_1_traininginput_v2.fits using 
+IUANAME then omitting from the result  *var*, colours, columns, and leave the merged 
+magnitudes per colour. The result is then matched to 
+(6) XMMOM_SUSS5.0_Sources_v0_1_classifications.fits  which adds the classifications to the 
+result being: (7) source_v2_chi2redGT2_aux_class.fits (214,211 sources)
+
+The result was finally matched by J2000,Epoch 2000 positions (1.0" radius) to SIMBAD using TopCat 
+-> (8) source_v2_chi2redGT2_aux_class_SIMBAD.fits  (14,963 rows) 
+
+    #     NOBS(max)
+w2  5051  36
+m2  5902  38
+w1 11336  59
+u   7951  67
+b   4663  41
+v   4226  58
+
+The non-SIMBAD has longer NOBS series
+
+Notice that we did not rerun the classification at this time. The main change is in the calculation
+of Chi-Squareds. 
+
+====
+July 18, updated these notes. 
+
+In the past week we selected some sources to investigate how their data supposted the chi-squared indication
+of variability. One source showed a clearly decreasing flux over the years, with the data also 
+spread fairly wide around the trend. Other sources showed large changes in flux without a clear 
+trend. The issue is partly that the data have been taken in a rather random way over time. 
+
+The examination was rather time consuming using TopCat since the source information in (8) was used 
+on the original SUSS5.0+Epoch. I wrote a program that prepares a fits file that combines 
+all for one source: 
+make_for_many_variable(pos=None, poserr=None, iauname=None, recnums=[0,5], chatter=1)
+
+
+====
+
+   December 5, 2023
+   
+I matched the subset which has gaiadr3_source_id values to the Gaia DR3 lite catalogue 
+in order to retrieve the lost columns for Gaia magnitude & colours Gmag, G-BP, G-RP, BP-RP
+Previously, the rows of V3/XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2_srcnum.fits
+with gaiadr3_source_id > 0 were selected for the input file (UPLOAD.t1):
+        
+SELECT * 
+   FROM TAP_UPLOAD.t1 INNER JOIN gaiadr3.gaia_source_lite 
+   ON TAP_UPLOAD.t1.gaiadr3_source_id = gaiadr3.gaia_source_lite.source_id    
+   
+This used the TAP Query interface in TopCat with ivo://esavo/gaia/tap  on table 
+gaiadr3.gaiasource_lite.    
+
+The other rows, i.e., with no gaiadr3 source id were saved. 66557 sources had match with PM
+correction. Now the other 5 896 493 sources. Match to Gaia DR3 2016 using positions (RA,DEC) 
+from SUSS using the CDS interface I/355/gaiadr3
+
+three parts
+gaia_tmp3b  source with PM  - match by gaiadr3 source id
+gaia_tmp4b  source in Gaia, small PM  - match by position (ra,dec) best within 1.0"
+gaia_tmp5b  source not in Gaia 
+
+after merging and renaming the files: 
+
+-rw-r--r--  1 kuin  staff    362989440 Dec  5 18:45 XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part1.fits
+66,577 sources with PM > 25 mas/yr
+-rw-r--r--  1 kuin  staff  22573393920 Dec  5 18:51 XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part2.fits
+4,149,511 sources with PM < 25 mas/yr and no match to Gaia DR3 with angDist < 1 arcsec
+-rw-r--r--  1 kuin  staff   9402304320 Dec  5 21:36 XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part3.fits
+-rw-r--r--  1 kuin  staff  32516568000 Dec  6 00:09 XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b.fits
+
+Problems found with SUSS5.0 
+
+1. some srcnum contain two entries for the same sources, e.g., 2429739 what is that? 
+   single image , summed image ? the magnitudes are different 
+   origin is the SUSS5.0 
+   
+   wrote script to make sure in light curve just a single time/mag per OBSID.
+   
+2. rudy-5 or summed image issue ? 
+   in:XMMOMV2_J004210.09411529.3_qso_uvw1_n72.fits OBSID:0202230301 srcnum:112546 
+   and many more in that file
+   
+   no, also here two clusters in RA,DEC -- both variable, but at different mean mag.
+   
+3. angular distance for match SUSS5 to Gaia DR3
+
+====
+
+2024-01-23 
+
+Need for matching SUSS within more than 1" to Gaia DR3. Mat pointed out that 
+there is a possibility that for the bright stars the OM positions are not as accurate as
+1 arcsec. So I match the part3 file mentioned above to Gaia DR3 within 3.0".  It looks 
+like there are good matches up to 2.0 arcsec, after which we may pick up some bad ones. 
+
+XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part3A ... .fits has 476,795 sources 
+that match with a Gaia source to within 3 arcsec angDist 
+XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part3B ... .fits has 1,270,007 
+sources that can find no match to Gaia within 3". 
+
+
+2024-02-06 
+
+Classification rework. 
+
+Selected a new set of 30 input parameters. Better result. Mat came up with an expression 
+for differencing Gaia G mag to ground-based magnituds with sensitivity to the spatial 
+extent of a source. It starts with a filter. 
+
+gaia_extended =  ((BII>10.0)||(BII<-10.0))&&(gmag_M<19.0)&&!(gaiadr3_ra<500.0) ? 
+  (20.0-gmag_M) : ((gmag_M > 0.0) ? (gaia_Gmag-gmag_M) : (gaia_Gmag-V_AB_MAG))
+
+where BII is the galactic lattitude.  
+
+
+The claxbol software (classify_new.py) when running the optimisation needs to be 
+interrupted (CNTL-C) which leads to incomplete classifications file. 
+Also, the API has been updated requiring replacement of product() with prod(). 
+
+Priors: The selection for the priors has been done by crossmatching with SIMBAD, and then
+determining the proportion of stars, and non-stars, being 69% and 31%. SIMBAD selection 
+of QSOs and galaxies then gives 6% for QSOs and 25% for galaxies. 
+In version 0.1 of the classification, we used as priors [0.65,10,25]% and got as a
+result proportions for stars, QSO, galaxies = [0.78,0.04,0.18]. 
+Alternatively, using the proportions of QSO and galaxies from SDSS16 which are the 
+training set, we would get [0.69, 0.13, 0.18]. 
+Since there is uncertainty in the proportions of stars, QSO, and galaxies, a range of 
+values for the priors have been explored. 
+
+2024-02-22 Do a rerun with only quality_flag == 1 data for variable sources catalogue
+
+make_file_variable (onlyqualzero=True)
+
+====
+
+2024-05-21 and later
+
+Need to redo the earlier classification with gaia_Gmag - WISE-W1 and gaia_extended, 
+using gaiadr3_source_id>0  instead of gaiadr3_ra< 500. 
+
+Also create 
+
+  Gaia_G_WISE_W1=((BII>10.0)||(BII<-10.0))&&
+  (WI_W1mag<16.0)&&
+  !(gaiadr3_ra>0)?(20.0-WI_W1mag):(Gaia_Gmag<15.6)&&
+  !(WI_W1mag>0.0)?(Gaia_Gmag-17.1):(gaia_Gmag-WI_W1mag)
+  
+    Gaia_G_WISE_W1=((BII>10.0)||(BII<-10.0))&&(WI_W1mag<16.0)&&!(gaiadr3_ra>0)?(20.0-WI_W1mag):(Gaia_Gmag<15.6)&&!(WI_W1mag>0.0)?(Gaia_Gmag-17.1):(gaia_Gmag-WI_W1mag)
+
+and thus, 
+
+  gaia_extended =  ((BII>10.0)||(BII<-10.0))&&
+  (gmag_M<19.0)&&
+  !(gaiadr3_ra>0)?(20.0-gmag_M):((gmag_M>0.0)?(gaia_Gmag-gmag_M):(gaia_Gmag-V_AB_MAG))
+
+   gaia_extended=  ((BII>10.0)||(BII<-10.0))&&(gmag_M<19.0)&&!(gaiadr3_ra>0)?(20.0-gmag_M):((gmag_M>0.0)?(gaia_Gmag-gmag_M):(gaia_Gmag-V_AB_MAG))
+
+where BII is the galactic lattitude.  gaiadr3_ra is being used, since there are some 
+Gaia sources with an source_is but without any photometry. 
+
+Starting now once more from 
+   XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b.fits (Jan 24, 2024)
+   
+create new input for classification in htranin directory
+    XMMOM_SUSS5.0_Sources_4claxbol_v6.csv
+    XMMOM_SUSS5.0_Sources_4claxbol_v6.in   
+classification is found in classificationcode/
+-rw-r--r--  1 kuin  staff         288  5 Jun 14:50 classification_set_v6.metrics
+-rw-r--r--  1 kuin  staff  1592182757  5 Jun 14:50 classification_set_v6.csv
+
+merged clssification_set_v6 [IAUNAME] to subset of XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b.fits
+(not VAR3, OBSID, SRCNAM, SRCDIST, SIGNIF, FLUX), and thus retains some basic aux/gaia data.
+this gave a catalogue in directory v3:
+====>
+   XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6.fits
+The classification report based on the input classification sets remains virtually 
+the same as before, but due to including upper limits which are needed since 
+the Gaia Gmag only goes down to ~19.5 magnitudes, and making that update for 
+sources outside the Galactic plane, we find now some previously classified as stars 
+are being better represented as QSO or galaxy class. 
+   
+   star          QSO        galaxy
+A : NpC0=3809450, NpC1=516515, NpC2=1637085
+   previously (no upper limits)
+B : NpC0=4136491, NpC1=370822, NpC2=1455737  
+
+The ratio's of change are star:0.92, QSO:1.39, galaxy:1.12
+and the relative fractions are stars:0.639, QSO:0.087, galaxy:0.274
+
+And this show a dramatic increase in QSO's. We therefore now test against 
+external catalogues as before using the SIMBAD object types. 
+  in TopCat x SIMBAD and the catalogue match ra,dec J2000, ep2000, delta_r=2.5 arcsec. 
+  -> 239,227 rows
+  write to 
+  /Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6xSIMBAD.fits
+ 
+If we treat the SIMBAD main_type=Star,QSO,Galaxy as truth, we get the following
+matrix
+
+true->	        	star	QSO		galaxy	retrieved 
+predicted star		83003	268		4173	89.3%
+predicted QSO		6282	6404	1076	94.4%
+predicted galaxy	3479	109		12817	70.9%
+TruePos.Rate		94.8%	46.5%	78%
+
+The low t.p.r. for QSOs is due to the large number of misclassified stars.
+Indeed, 2118 have a parallax in SIMBAD/Gaia. Also, we took the training sets 
+from the SDSS which is partly in SIMBAD, so this is a bit biased, but, for 
+example, for true star, predicted QSO, and not in training set, we get 6278
+sources, only 7 less than in the table above. 
+We need to discriminate between stars and QSO better. 
+The outlier histogram for this set as compared to the full catalogue shows 
+ a different shape. Whereas the full catalogue has outlier peak around 9, 
+ this set is flattish between 8 and 19, so there is a poor match to the class.
+ Restricting outlier to < 15 leaves still 4626 misclassified sources. 
+
+====
+
+    
+    June 2024
+    So far, we have selected transients based on Nobs and Chi2-reduced, but not selected 
+    on whether the source was detected in the OM processing as extended or pointlike. 
+    That is important because extended sources are measured using isophotal photometry, 
+    and that depends on the exposure time, where the longer exposures exhibit the fainter 
+    outer regions of galaxies. So in the next part we collect the relevant observations 
+    for each source, but then deselect those which have less than 10 pointlike 
+    observations. 
+    
+    25 July 2024 forced chi2 to use only qual=0 data 
+    band, all $N(qual=0) > 10$ & 4N(qual=0)>10$ + $\chi^2_red(qual=0) > 6$ \\
+    uvw2 &   4066 &   48 \\
+    uvm2 &   3533 &   24 \\
+    uvw1 &  23095 &  430 \\
+    u    &  13549 &  275 \\
+    b    &  14399 &  163 \\
+    v    &  15970 &  168 \\
+    all  &  74612 & 1108 \\
+    
+    29Aug 2024: using XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6.fit... and selecting 
+    UVW2_CHISQ/UVW2_NOBS>5&UVW2_SRCDIST>6&UVW2_QUALITY_FLAG==0&UVW2_NOBS>5|UVM2_CHISQ/UVM2_NOBS>5&UVM2_SRCDIST>6&UVM2_QUALITY_FLAG==0&UVM2_NOBS>5|UVW1_CHISQ/UVW1_NOBS>5&UVW1_SRCDIST>6&UVW1_QUALITY_FLAG==0&UVW1_NOBS>5|U_CHISQ/U_NOBS>5&U_SRCDIST>6&U_QUALITY_FLAG==0&U_NOBS>5|B_CHISQ/B_NOBS>5&B_SRCDIST>6&B_QUALITY_FLAG==0&B_NOBS>5|V_CHISQ/V_NOBS>5&V_SRCDIST>6&V_QUALITY_FLAG==0&V_NOBS>5
+    I obtain 10,632 sources
+    But.. SimbadxSUSS5_variable_sources.fits (V8) only has 3448 records. Writing to 
+    SimbadxSUSS5_variable_sources_alternate.fits in var_lc
+    My code recalculates Chi2red and then the number of sources with chi2red>5 drops to 
+    3448 sources
+    
+    
+====
+
+VARIABILITY
+
+    first extract the set of light curves for selected sources
+    
+    The selection criteria are:
+       1. data quality good: <band>_quality_flag=0
+       2. more than 5 good quality observations
+       3. distance to nearest source > 6"
+       4. chi-squared-reduced > 5
+       
+    mkdir var_lc
+    
+    do in ipython:
+    from cats import xmm2athena as xmm2
+    xmm2.make_file_variable(band='uvw2',chi2_red_min=5.,minnumber=5,min_srcdist=6.)
+    xmm2.make_file_variable(band='uvm2',chi2_red_min=5.,minnumber=5,min_srcdist=6.,chatter=3)
+    xmm2.make_file_variable(band='uvw1',chi2_red_min=5.,minnumber=5,min_srcdist=6.,chatter=3)
+    xmm2.make_file_variable(band='u',chi2_red_min=5.,minnumber=5,min_srcdist=6.,chatter=3)
+    xmm2.make_file_variable(band='b',chi2_red_min=5.,minnumber=5,min_srcdist=6.,chatter=3)
+    xmm2.make_file_variable(band='v',chi2_red_min=5.,minnumber=5,min_srcdist=6.,chatter=3)
+   
+    found 3448 sources (w2:263,m2:150,w1:1278,u:702,b:506,v:549)  
+    
+    where def make_file_variable( band='uvw1', minnumber=10, maxnumber=1000, 
+         chi2_red_min=5., 
+         inputdir='/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/',
+            ##inputcat="XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6xSIMBAD.fits.gz",
+         inputcat="XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6.fits",
+         selectrecs=[0,60000000.], plotit=False, onlyqualzero=False,
+         min_srcdist=6.0,
+         chatter=2):
+   
+    in shell do: 
+    cd var_lc
+    ls -1  *.fits > allsources.txt
+    
+    in topcat edit allsources.txt:
+    topcat: new col; test=split(col1,"_"); name=concat(test[0]," ",test[1])
+    rename col1 filename
+    
+    Select all sources in 
+        inputcat="XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6.fits",
+    which match allsources.txt (but need to replace _ with " " in name
+        match with all from allsources.txt: name , filename 
+        => SimbadxSUSS5_variable_sources_v8.fits
+    use "best match for each table 1 row" and "all from 1"     
+    
+    match this to CDS/GaiaVarSumm to find matches to Gaia variables 
+    add column GaiaVar after using a match to Gaia Var in topcat and retaining the 
+        object variable classification, and Gmagmean for selection as GaiaVar
+    add column SimbadVar for the match to Simbad variables (see below for the selection)
+    --> 268 vars (out 3448) 7.7%
+    
+    match this to Simbad 
+    
+    select from Simbad/Main_type the variable types identified by Ada
+    main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|
+    main_type=="SN"|main_type=="**"|main_type=="EB*"|main_type=="Cepheid"|
+    main_type=="AeBe"|main_type=="BYDra"|main_type=="Eruptive"|main_type=="XRB"|
+    main_type=="LPV"|main_type=="Mira"|main_type=="OrionV"|main_type=="Nova"|
+    main_type=="Pulsating*"|main_type=="Pulsar"|main_type=="Variable"|
+    main_type=="HMXB"|main_type=="RRLyr"|main_type=="Rotation"|
+    main_type=="SpBinaries"|main_type=="Symbiotic*"|main_type=="YSO"|
+           or:
+main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_type=="SN"|main_type=="**"|main_type=="EB*"|main_type=="Cepheid"|main_type=="AeBe"|main_type=="BYDra"|main_type=="Eruptive"|main_type=="XRB"|main_type=="LPV"|main_type=="Mira"|main_type=="OrionV"|main_type=="Nova"|main_type=="Pulsating*"|main_type=="Pulsar"|main_type=="Variable"|main_type=="HMXB"|main_type=="RRLyr"|main_type=="Rotation"|main_type=="SpBinaries"|main_type=="Symbiotic*"|main_type=="YSO"
+
+    
+    -> 174 variables (out of 3448) much overlap with GaiaVar
+    add SimbadVar, GaiaVar boolean columns
+    
+    save the catalogue file:
+        => SimbadxSUSS5_variable_sources_vXX.fits
+  - - - -      
+    Remove obsids which have maximum brightness (~3sigma from median or > 1mag) in 
+    multiple sources or have a dimming in excess (~3sigma or > 0.2 mag)in multiple 
+    sources for the same obsid. (see code below) 
+      ... 5 sigme does not find any multiple sources with same obsid
+    
+    -> write a file with bad obsids. 
+    -> rerun the above with the bad obsids input file   
+       the copy of the input file (temp_file.fits) has been updated  
+    -> remove the XMM*.fits files 
+       check the bad_obsids.txt file
+    now we have hopefully culled the obsids which were systematically high or low. 
+    
+    -> rerun make_file_variable() with indir = './' and inputcat='temp_file.fits'
+    
+    Update the above fits files per source, then the following:    
+        
+    for each source, 
+       for each of its OBSIDs 
+          find the number of sources with that obsid -> list
+       take the maximum number of sources within that list 
+    => source, ra, dec, number of sources 
+          
+    compare all sources to those flagged as Gaia Variables to determine maximum 
+    number of sources acceptable within an obsid
+    
+    remove the sources which exceed the maximum number 
+    
+    Remove obsids which have > 20 Var Srcs of which < 20% are Gaia Variable
+    
+    rerun the above => v9 
+    
+    make a list of obsids where there is a significant brightening, and then 
+    make a histogram of the number of sources with brightning per obsid.
+    
+    
+    ========================
+    further post-processing: 
+    
+    match to nearby galaxies and remove sources which are inside the galaxy 
+    
+    match to bright nebulae and remove sources 
+    
+    Paired correlated lightcurves: might be because of scattered light features
+    limit search for source correlation to other source that have a matched obsid
+    output source, matched source, obsid with the high point? 
+    
+    More general approach:
+    for all sources 
+       for each obsid 
+           compute the correlation with random 2 other sources within a 50(tbd) arcsec radius
+    -> source, obsid, correlation
+    sort by obsid       
+    for high correlations in an obsid, 
+       select its sources 
+          select for each source the obsids
+              remove one obsid at a time and compute the correlation/chi-squared
+              a significant? drop will flag the obsid which causes the flare
+          find out which of the same obsid causes a flare in all sources
+          remove such an obsid from all light curves (reprocess)
+       
+       
+====
+
+  Code to extract the summary/index file to the light curve directory
+
+$ ls -1 > allfiles__.txt
+
+python:
+from astropy.io import fits
+from astropy.table import Table
+
+g = open('allfiles__.txt')
+fnames = g.readlines()
+g.close()
+# for each lightcurve add a row (with multiple rows for a single source possible)
+name=fnames[0].split('\n')[0]
+x = fits.open("lc_fits/"+name)
+x1 = f[1].data
+t1 = Table(x1)
+x = fits.open("lc_fits/"+name)
+x2 = x[2].data
+tt = Table(x2)
+N=len(fnames))
+for k in np.arange(2,N):
+    name=fnames[k].split('\n')[0]
+    x.close()
+    x = fits.open("lc_fits/"+name)
+    x2 = x[2].data
+    t2 = Table(x2)
+    d2 = dict(t2)
+    tt.add_row(vals=d2)
+tt.write("SUSS_variables.fits")
+
+unames=[]
+for k in np.arange(N):
+    unames.append(fnames[k][:21])
+ 
+# find a single match to each in unames  
+snames=[]
+for k in unames:
+    for m in fnames:
+        if k == m[:21]: 
+            snames.append(m)
+            break
+
+name=snames[0].split('\n')[0]
+x = fits.open("lc_fits/"+name)
+x2 = x[2].data
+tt = Table(x2)
+N=len(snames)
+for k in np.arange(1,N):
+    name=snames[k].split('\n')[0]
+    x.close()
+    x = fits.open("lc_fits/"+name)
+    x2 = x[2].data
+    t2 = Table(x2)
+    d2 = dict(t2)
+    tt.add_row(vals=d2)
+tt.write("SUSS_variables_single.fits")
+
+====
+
+
+fix for problem with IAUNAME missing by creating that from the filename file
+
+    t = Table.read("newfiles.txt",format="ascii")    
+    
+    f = open("newiauname.txt","w")
+
+In [164]: for x in t["filename"]:
+     ...:     x1 = x.split("_")
+     ...:     if (x1[1][10] == "+") | (x1[1][10] =="-"):
+     ...:         f.write (f"{x1[0].strip()}_{x1[1][:9]}{x1[1][10:17]:7}\n" )
+     ...:     else:
+     ...:         f.write (f"{x1[0].strip()}_{x1[1][:9]}+{x1[1][10:17]:7}\n" )
+     ...: 
+
+In [165]: f.close()
+
+    
+    #hist(n_all,bins=40,color='orange',label='all sources')
+    #hist(n_var,bins=40,color='b',label='Gaia Variables')
+    #xlabel("for each source: max number of OBSIDs")     
+     
+    # next a try to remove sources; but in the end, we will remove obsids  
+    qhigh = n_all > 150
+    goodsrc=[]
+    for k in range(len(results)):
+        if not qhigh[k]:
+            goodsrc.append(results[k])
+    print (f"remaining good sources with Nmax < 150 is {len(goodsrc)}")
+    highsrc = []
+    for k in range(len(results)):
+        if qhigh[k]:
+            highsrc.append(results[k]) 
+    print (f"in GaiaVars there are {len(n_var[n_var > 150])} sources with >150 other sources in an obsid")
+  
+    # make file to move the high a_all sources
+    os.system(f"mkdir ./high_sourcenumbers")
+    with open(indir+"move_high_srcnumber_data","w") as outf:
+        for k in range(len(n_all)): 
+            if n_all[k] > 150:
+                file = results[k][1]
+                file2 = file.split('.fits')[0]+'.pdf'
+                outf.write(f"mv {indir}{file}  {indir}high_sourcenumbers/{file}\n") 
+                outf.write(f"mv {indir}{file2}  {indir}high_sourcenumbers/{file2}\n") 
+    #os.system(f"chmod a+x {indir}move_high_srcnumbers;{indir}/high_source_numbers/")  
+
+    
+    # screen for bright nebula sources 
+    # lynds catalogue 7009: 
+    lynds = fits.getdata('7009.fit',ext=1)
+    lyRA  = lynds.field('_RAJ2000')
+    lyDE  = lynds.field('_DEJ2000')
+    diam1  = lynds.field('Diam1')
+    diam2  = lynds.field('Diam2')
+    diam=np.max([diam1,diam2],axis=0)
+                    
+    in_a_cloud = []                                 
+    for k in range(len(lyRA)):
+        # look for sources in each lynds field of bright nebulosity
+        c1 = SkyCoord(lyRA[k]*u.deg, lyDE[k]*u.deg, frame='icrs')
+        cldiam = diam[k]*u.arcmin
+        for kk in range(len(n_all)):
+           srcra = results[k][3]
+           srcde = results[k][4]
+           c2 = SkyCoord(srcra*u.deg, srcde*u.deg, frame='icrs')
+           sep = c1.separation(c2)
+           if sep < cldiam:
+              in_a_cloud.append(results[k])
+    # result : in_a_cloud=[]     -- no sources inside a bright cloud     
+          
+====     
+ 
+# fix for building filename
+  
+from astropy import coordinates as coord
+
+a = coord1[0][0].split('.')    
+ra = f"{a[0][:-4]}:{a[0][-4:-2]}:{a[0][-2:]}.{a[1]}"
+
+b = coord1[0][1].split(".")
+dec = f"{int(b[0][:-4]):02}:{b[0][-4:-2]}:{b[0][-2:]}.{b[1]}"
+
+pos = coord.SkyCoord(f"{ra} {dec}", unit=(u.hourangle, u.deg) )
+
+====
+
+   
+    
+
