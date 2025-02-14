@@ -1,0 +1,23 @@
+
+Tests for the XMM2Athena enhanced  SUSS catalogue with providing 
+
+To provide a test subset from SUSS we will select a small range in RA so that we are sure to include multiple observations of the same field.
+Along with this we select a subset of the Gaia DR3 sources with PM > 25 mas/yr for the selected range in RA. 
+The training sets are small enough to keep them as is.
+
+1a. a single source catalogue in several steps:
+    - combining multiple records with the same source name, computing the median magnitudes and error, chi-squared for multiple observations
+    - matching each source to the Gaia DR3 sources with proper motion > 0.25 mas/yr.
+    - matching all sources without PM match in Gaia DR3 ti Gaia DR3 to get the Gaia magnitudes 
+    - combining the results from these two matches, including those without match
+    Note that some sources will be too faint to match with Gaia     
+    For ease of use the code will be adapted to use a config .ini file (TBD)
+1b. Enhancing the source catalogue with external data in an augmentation step. Here scripts match each source with available catalogues 
+    The magnitudes are added to the catalogue after merging those which are found from multiple surveys, e.g., the R magnitude might be in both PanStarrs as well as in UKIRT. 
+    some have up to 5 magnitudes. These are combined in the scripts which are called by the python code.
+
+2. Classification: Here we run the CLAXBOI set with the config.ini file which is in classification/CLAXBOI/classificationcode/
+
+3. Temporal: 
+   In xmm2athena.py module there are programs to run. HowTo will be described here TBD. 
+ 
