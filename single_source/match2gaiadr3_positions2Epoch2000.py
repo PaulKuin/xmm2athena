@@ -87,49 +87,52 @@ from cdshealpix import nested
 #  Global definitions  #
 ########################
 
-
+ROOT = '/Volumes/DATA11/'  # data disk
 TOPCATPATH = "/Users/kuin/bin" # /disk/xray16/npmk/bin
 work = os.getcwd()
-gaiacat = '/Users/data/catalogs/gaiadr3_pmgt10.fits' #  /disk/xray16/npmk/ ???
-#gaiacat = '/Users/data/catalogs/gaiadr3_10test.fits' # /disk/xray16/npmk/ ???
-gaiapath = '/Users/data/catalogs/gaiadr3_PM/' # store here the split up cat.
-gaiaHP='/Users/data/catalogs/gaiadr3_healpix.fits' # gaiacat with healpix col.
-# gaiapath = '/disk/xray16/gaiadr3_PM/' 
-gaiaObsidTable=work+'/gaiadr3_obsid_tiles.fits'
 
-process_epoch_range = [2007.7,2007.9]# [2005.0,2022.2]
-process_epoch_step = 0.1 # if making smaller, edit filenames 
-catalog='SUSS' # options are: 'UVOTSSC2', 'SUSS', 'test'
+gaiacat  = ROOT+'data/catalogs/gaiadr3_pmgt10.fits' #  /disk/xray16/npmk/ ???
+gaiapath = ROOT+'data/catalogs/gaiadr3_PM/' # store here the split up cat.
+gaiaHP   = ROOT+'data/catalogs/gaiadr3_healpix.fits' # gaiacat with healpix col.
+gaiaObsidTable = work+'/gaiadr3_obsid_tiles.fits'
 
-RADIUS = 20./60 # circular area in arcsec to include in search for PM objects
+process_epoch_range = [2005.0, 2025.0] #[2007.7,2007.9]# [2005.0,2022.2]
+process_epoch_step  = 0.1 # if making smaller, edit filenames which assume 0.1yr
+catalog             = 'SUSS' # options are: 'UVOTSSC2', 'SUSS', 'test'
+
+RADIUS        = 20./60 # circular area in arcsec to include in search for PM objects
 gaia_temp_cat = work+"/gaiadr3_selected_4epoch.fits" 
-#gaiacat='/Users/data/catalogs/suss_gaia_epic/gaiadr3_highpm.fits' DR3 - no POSERR
-#gaiacat='/Users/data/catalogs/suss_gaia_epic/gaia.pmgt30.fits' EDR3
-obs_cat = work+'/epoch_slice_cat.fits'
+obs_cat       = work+'/epoch_slice_cat.fits'
+epochfilesdir = ROOT+'data/catalogs/tests/'
 
 use_healpix = True
-chatter = 0
-do_epoch = True #True if running for first time on chunks
+chatter     = 0
+do_epoch    = True #True if running for first time on chunks
 prints2file = False #TBD not implemented
 
 if catalog == 'SUSS':
-   rootobs = '/Users/data/catalogs/suss_gaia_epic/'
-   chunks = ['XMM-OM-SUSS5.0.fits']
-   match_par = 1.5  # see line 471: typical positional error 
+   #rootobs    = ROOT+'data/catalogs/suss_gaia_epic/'
+   #chunks     = ['XMM-OM-SUSS5.0.fits']
+   rootobs    = ROOT+'data/catalogs/suss6.2/'
+   chunks     = ['XMM-OM-SUSS6.2.fits']
+   match_par  = 1.5  # see line 471: typical positional error in Gaia DR3 match
 elif catalog == 'UVOTSSC2':
-   rootobs = '/Users/data/catalogs/uvotssc2/' # '/disk/xray16/npmk/uvotssc2/'
-   chunks = []
+   rootobs    = ROOT+'data/catalogs/uvotssc2/' # '/disk/xray16/npmk/uvotssc2/'
+   chunks     = []
    for k in range(24):
-      chunks.append(f'ovotsso{k:02}.fits')
-   match_par = 0.45   # see line 471: typical positional error 
+       chunks.append(f'ovotsso{k:02}.fits')
+   match_par  = 0.45   # see line 471: typical positional error 
 elif catalog == 'test':
-   rootobs = '/Users/data/catalogs/uvotssc2/'
-   chunks = ['test_sources.fits']
-   match_par = 0.45   # see line 471: typical positional error 
+   rootobs    = ROOT+'data/catalogs/uvotssc2/'
+   chunks     = ['test_sources.fits']
+   match_par  = 0.45   # see line 471: typical positional error 
+elif catalog == 'test2':
+   rootobs    = ROOT+'data/catalogs/tests/'
+   chunks     = ['test_sources.fits']
+   match_par  = 1.5   # see line 471: typical positional error 
       
 else: raise IOError(f'Error : the catalog {catalog} is not defined in the code.')
 
-epochfilesdir = '/Users/data/catalogs/cat_out/'
 
 #### END GLOBAL DEFINITIONS
 
@@ -235,8 +238,10 @@ class healpix_catalogue(object):
     def get_header(self):
         return self.t.colnames    
 
-class split_catalogue(object):  #obsolete
+class split_catalogue(object):  # OBSOLETE
    """
+   OBSOLETE 
+   
    Split the catalogue into blocks of given size using ra, dec   
    provide method to query only central and nearby blocks
 

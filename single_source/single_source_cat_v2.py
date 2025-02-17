@@ -33,9 +33,11 @@
 #
 # to do: fail calculating mag_min, due to failed masks, so -999 is always lowest
 #
-#    @npmkuin, 2023, Copyright 2023, license 3-clause BSD style (see github.com/PaulKuin)
+# 2025-02-15: added code to select only qual=0 points to calculate chisq, but keep the 
+#   value using all data in chisq_all 
+#    @npmkuin, 2023, Copyright 2023-2025, license 3-clause BSD style (see github.com/PaulKuin)
 
-__version__ = 2.0
+__version__ = 2.1
 
 # globals
 import os
@@ -147,7 +149,8 @@ def make_new(tx):
                 names=[b+"_CHISQ",b+"_NOBS",b+'_AB_MAG_MIN',b+'_VAR3',b+'_SKEW'])  
         elif catalog == 'UVOTSSC2':        
             tx.add_columns([0.,0.,None,None,0.],
-               names=[b+"_CHISQ",b+"_NOBS",b+'_ABMAG_MIN',b+'_VAR3',b+'_SKEW'])  
+               names=[b+"_CHISQ",b+"_CHISQ_ALL",b+"_NOBS",b+'_ABMAG_MIN',b+'_VAR3',b+'_SKEW'])  
+#               names=[b+"_CHISQ",b+"_NOBS",b+'_ABMAG_MIN',b+'_VAR3',b+'_SKEW'])  
             tx.remove_columns([b+"_FLUX",b+"_FLUX_ERR"])
     tx.add_columns([None,None,None],names=['OBSIDS', 'EPOCHS','SRCNUMS'])
            
@@ -545,8 +548,11 @@ def mainsub(chunk):
                                 
         for band in bands:
             qf = tab_ma[band+"_QUALITY_FLAG_ST"]
+            qf2 = tab_ma[band+"_QUALITY_FLAG"]
             qfaa = qf.data
+            qfa2 = qf2.data
             qf_q = qfaa != ''
+            qf2_q= qfa2 != ''
             #print (f"546 qfaa -- {type(qfaa)}  {qfaa} selected: {qf[qf_q]} {len(qf[qf_q])} ")
              
             if nrow > 1:
@@ -595,7 +601,8 @@ def mainsub(chunk):
                 magx = tab_src[band+"_AB_MAG"]
                 errx = tab_src[band+"_AB_MAG_ERR"]
                 #print (f"magx={magx},\nerrx={errx}\n = = = = = next ")
-                nObs, med_mag, chisq, sigma_mag, skew, var3 = stats(magx,err=errx,syserr=0.005)   
+                nObs, med_mag, chisq, sigma_mag, skew, var3 = stats(magx,err=errx,syserr=0.005)
+                   
                 qmag = magx > 5 
                 if len(magx[qmag]) > 0: 
                     min_mag = np.min(magx[qmag])
@@ -616,8 +623,12 @@ def mainsub(chunk):
                 new_row[band+'_ABMAG'] = med_mag
                 new_row[band+'_ABMAG_ERR'] = sigma_mag
                 new_row[band+'_ABMAG_MIN'] = min_mag
-            new_row[band+'_VAR3'] = var3   # variability on 3-sigma 
-            new_row[band+'_CHISQ'] = chisq
+            #new_row[band+'_VAR3'] = var3   # variability on 3-sigma 
+            if (qual_out == 0) and (len(qf) > 1):  # there is a good detection amongst list
+                qchi = qf2[qf2_q] == 0  # index data with qual==0
+                nObs, med_mag, chisq, sigma_mag, skew, var3 = stats(magx[qchi],err=errx[qchi],syserr=0.005)    
+                new_row[band+'_CHISQ'] = chisq   # this should only be based on the qual==0 data points
+            new_row[band+'_CHISQ_ALL'] = chisq   # this is based on any quality 
             new_row[band+'_SKEW'] = skew
             new_row[band+'_NOBS'] = nObs
             if catalog == 'SUSS':
