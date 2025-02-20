@@ -20,4 +20,11 @@ The training sets are small enough to keep them as is.
 
 3. Temporal: 
    In xmm2athena.py module there are programs to run. HowTo will be described here TBD. 
+
+Make a testset (with 287.80<ra<287.83): 
+
+run
+./make_testset.sh /Volumes/DATA11/data/catalogs/suss6.2/XMM-OM-SUSS6.2.fits
+
+In this range are multiple observations of certain sources present. 
  
