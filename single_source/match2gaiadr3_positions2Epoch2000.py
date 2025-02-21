@@ -14,10 +14,12 @@ gaiadr3 source, listing the matching Gaia ID.
 SELECT TOP 30100100 gaia_source.designation,gaia_source.source_id,gaia_source.ra,
 gaia_source.ra_error,gaia_source.dec,gaia_source.dec_error,gaia_source.parallax,
 gaia_source.parallax_over_error,gaia_source.pm,gaia_source.pmra,gaia_source.pmra_error,
-gaia_source.pmdec,gaia_source.pmdec_error FROM gaiadr3.gaia_source 
-WHERE (gaiadr3.gaia_source.pm>=10.0)
+gaia_source.pmdec,gaia_source.pmdec_error,gaia_source.phot_g_mean_mag,gaia_source.bp_rp,
+gaia_source.bp_g,gaia_source.g_rp,gaia_source.non_single_star
+FROM gaiadr3.gaia_source 
+WHERE (gaiadr3.gaia_source.pm>=25.0)
 
-=> gaiadr3_pmgt10.fits 
+=> gaiadr3_pmgt25.fits 
 
     match the SUSS/UVOTSSC catalogue to Gaia DR3 astrometry for  obs_epoch in catalogue
     and then compute the positions for Epochs in list, typically the Gaia epoch, and 
@@ -27,17 +29,18 @@ WHERE (gaiadr3.gaia_source.pm>=10.0)
     
     (A) independently retrieve the higher PM sources from gaiadr3 => gaiadr3_pmgt10.fits 
         This was completed 2023-march2  
-        (using the gaiadr3_lite, PM > 25 mas/yr > gaiadr3_highpm.fits )
-        and 2 March 2023 for > 10mas/yr => gaiadr3_pmgt10.fits 
-    
+        (using the gaiadr3_lite, PM > 25 mas/yr > gaiadr3_highpm.fits 
+         2 March 2023 for > 10mas/yr => gaiadr3_pmgt10.fits )
+        18 Feb 2025 back to a 25 mas/yr 
+           
     (B) The retrieved catalogue is large,  and to speed up things, it has been subsetted
         using the class split_catalogue -> split_catalogue.
     
-    (1) processing: for a limited range in Epoch, make list of obsids
+    (1) processing: done for a limited range in Epoch, make list of obsids
         use obsid list to find pointing RA,DEC
         restrict processing using that range
     
-    (C) loop over epochs :
+    (C) loop over epochs involves :
         - extract the tiles near the observed image pointing and on those select
           with radius > 20 arcmin to make a list gtemp
         - extract suss data for obsid 
@@ -60,6 +63,8 @@ WHERE (gaiadr3.gaia_source.pm>=10.0)
     (E) clean up while doing this
     
     (5) write out a restricted columns catalog table [ra,dec,perr,pmra,pmde,gmag] 
+    
+Requires: astropy cdshealpix     
 
 NPMK, April 2023, UVOTSSC2 processing (about 2 Epochs per hour on MacBook Pro 
     2019, 2.3GHz 8-core i9,32GB 2667MHz  memory) 
@@ -89,21 +94,23 @@ from cdshealpix import nested
 
 ROOT = '/Volumes/DATA11/'  # data disk
 TOPCATPATH = "/Users/kuin/bin" # /disk/xray16/npmk/bin
-work = os.getcwd()
+work = os.getcwd()+"/"
 
-gaiacat  = ROOT+'data/catalogs/gaiadr3_pmgt10.fits' #  /disk/xray16/npmk/ ???
+gaiacat  = ROOT+'data/catalogs/gaiadr3_pmgt25.fits' #  /disk/xray16/npmk/ ???
 gaiapath = ROOT+'data/catalogs/gaiadr3_PM/' # store here the split up cat.
 gaiaHP   = ROOT+'data/catalogs/gaiadr3_healpix.fits' # gaiacat with healpix col.
 gaiaObsidTable = work+'/gaiadr3_obsid_tiles.fits'
+GaiaEpoch = 2016.0
 
-process_epoch_range = [2005.0, 2025.0] #[2007.7,2007.9]# [2005.0,2022.2]
+process_epoch_range = [2000.0, 2026.1] #[2007.7,2007.9]# [2005.0,2022.2]
 process_epoch_step  = 0.1 # if making smaller, edit filenames which assume 0.1yr
-catalog             = 'SUSS' # options are: 'UVOTSSC2', 'SUSS', 'test'
+
+catalog             = 'test2' # options are: 'UVOTSSC2', 'SUSS', 'test'
 
 RADIUS        = 20./60 # circular area in arcsec to include in search for PM objects
 gaia_temp_cat = work+"/gaiadr3_selected_4epoch.fits" 
 obs_cat       = work+'/epoch_slice_cat.fits'
-epochfilesdir = ROOT+'data/catalogs/tests/'
+epochfilesdir = work #ROOT+'data/catalogs/tests/'
 
 use_healpix = True
 chatter     = 0
@@ -115,21 +122,21 @@ if catalog == 'SUSS':
    #chunks     = ['XMM-OM-SUSS5.0.fits']
    rootobs    = ROOT+'data/catalogs/suss6.2/'
    chunks     = ['XMM-OM-SUSS6.2.fits']
-   match_par  = 1.5  # see line 471: typical positional error in Gaia DR3 match
+   match_par  = 2.5  # see line 471: typical positional error in Gaia DR3 match is 2.5 
 elif catalog == 'UVOTSSC2':
    rootobs    = ROOT+'data/catalogs/uvotssc2/' # '/disk/xray16/npmk/uvotssc2/'
    chunks     = []
    for k in range(24):
        chunks.append(f'ovotsso{k:02}.fits')
    match_par  = 0.45   # see line 471: typical positional error 
-elif catalog == 'test':
+elif catalog == 'test':   
    rootobs    = ROOT+'data/catalogs/uvotssc2/'
    chunks     = ['test_sources.fits']
    match_par  = 0.45   # see line 471: typical positional error 
-elif catalog == 'test2':
+elif catalog == 'test2':  # do not change "test2" as it is hardcoded in this module
    rootobs    = ROOT+'data/catalogs/tests/'
-   chunks     = ['test_sources.fits']
-   match_par  = 1.5   # see line 471: typical positional error 
+   chunks     = ['test_cat.fit']
+   match_par  = 2.5   # see line 471: typical positional error 
       
 else: raise IOError(f'Error : the catalog {catalog} is not defined in the code.')
 
@@ -154,38 +161,85 @@ class finalise(object):
    
    currently still editing (@npmkuin,25-march-2023)
    """
-   def __init__(self,):
-       print (f"finalise the catalogue")
+   
+   def __init__(self,epochfilesdir=epochfilesdir):
+       import os
+       print (f"finalise step1a on processing the catalogue: fix positions to Ep2000 & add some GaiaDR3 data")
        self.indir = epochfilesdir
-       self.matchout = work+'matchout_all.fits' # renamed cat_out/cat_out_all_pm.fits
-       self.nomatch = work+'nomatch_all.fits'   # renamed cat_out/cat_out_all_nopm.fits
-       # further match using CDS and 1.5" -> cat_out_nopmxgdr3.Vizier1355.fits
-       self.tmp1 = work+'tmp.finalise.123.fits'
-       self.tmp2 = work+'tmp.finalise.456.fits'
-       
-   def get_infiles(self):    
+       self.matchout = work+'/matchout_all.fits' # renamed cat_out/cat_out_all_pm.fits
+       self.nomatch = work+'/nomatch_all.fits'   # renamed cat_out/cat_out_all_nopm.fits
+       self.outfile = work+'/matched2gaiadr3.fits' # final product
+       # further match using CDS and 2.5" -> cat_out_nopmxgdr3.Vizier1355.fits
        self.infiles = []
-       self.infiles_match = []
-       self.infiles_nomatch = []
+       self.infiles_match =""
+       self.infiles_nomatch = ""
        x = os.listdir(self.indir)
        for a in x:
            if a[:8] == 'cat_out_': 
                self.infiles.append(a)
-               self.infiles_match.append(a+"#1")
-               self.infiles_nomatch.append(a+"#2")
+               self.infiles_match   += a+"#1 "
+               self.infiles_nomatch += a+"#2 "
+       if (self.infiles_match=="" )| (self.infiles_nomatch==""):
+           raise RuntimeError(f"finalise.init: no files found infiles_match={self.infiles_match} infiles_nomatch={self.infiles_nomatch}")        
 
    def stilts_process(self):
        # match a nomatch table to gaiadr3 using cdsskymatch 
        # retain the relevant columns
-       command = ""            
+       self.stilts_merge()
+       print ("\n merged the cat_out_* files \n")
+       self.match2gaiadr3()
+       print ("\nmade match to gaiadr3 by cdsskymatch\n")
+       # now the nomatch cat lacks some columns so, we match allowing them to be added
+       # different columns in 1 = "designation source_id ra2016gaia ra_error dec2016gaia dec_error "+\
+       # " parallax parallax_over_error pm pmra pmra_error pmdec pmdec_error healpix "+\
+       # " raObs decObs obsEp  "
+       import os
+       #command = f"/bin/csh ~/bin/stilts_fin_match2gaia.sh {self.matchout} {self.nomatch} {self.outfile}"
+       #status=os.system(command,30*"-=")   
+       #if status > 0: print(f"finalise.stilts_process 224 Error in {command} ")
+       
+       print (f"\nthere are now: a file matched with gaiadr3_pmgt25 tmp_{self.matchout},\n")
+       print (f"one for nomatch with pm>25 tmp_{self.nomatch} and \none all matched to gaiadr3 from cds: sussxgaiadr3_ep2000.fits \n")
+       
+       print ("deleting temporary files")
+       status=os.system("rm tmp_aaa* tmp_gaia_pm_m*")
+       
        
    def stilts_merge(self):
-       # merge the tables using stilts tcat     
-       command = ""            
+       # merge the list of tables using stilts tcat     
+       import os
+       command1 = f"java -jar ~/bin/topcat-full.jar -stilts tcat in='{self.infiles_match}' "+\
+         f" ifmt=fits out={self.matchout}  ofmt=fits lazy=True"  #+\
+         #f" icmd='delcols GroupID' icmd='delcols GroupSize' icmd='delcols Separation' icmd='delcols 2000Ep' "+\
+           
+                 
+       command2 = f"java -jar ~/bin/topcat-full.jar -stilts tcat in='{self.infiles_nomatch}' "+\
+         f" ifmt=fits out={self.nomatch}  ofmt=fits lazy=True " # +\
+         #" icmd='delcols GroupID' icmd='delcols GroupSize' icmd='delcols Separation' icmd='delcols 2000Ep' "
+        
+                  
+       print (f"in finalise.stilt_merge commands: \n{command1}\n\n{command2}\n")
+      
+       status=os.system(command1)
+       if status > 0: print(f"finalise.stilts_merge 249 Error in {command1} ")
+       status=os.system(command2)
+       if status > 0: print(f"finalise.stilts_merge 251 Error in {command2} ")
        
-   def it(self):
-       # main()
-       command = ""            
+   def match2gaiadr3(self,):
+       # 
+       # since cds renames columns, we match it all again, so that we have a consistent 
+       # set of columns. Note that a few of the earlier matches with high PM can switch 
+       # to another Gaia source. 
+       #
+       import os
+       
+       command4 = f"/bin/csh ~/bin/stilts_fin_match2gaia.sh {self.matchout} {self.nomatch} {self.outfile}"
+       print (f"finalise.match2gaiadr3 call stilts_fin_match2gaia.sh: \n{command4}\n")
+       status = os.system(command4)
+       if status > 0: print(f"finalise.match2gaiadr3 280 Error in {command4} ")
+       
+       
+# end class finalise()       
        
    
 class healpix_catalogue(object):
@@ -551,16 +605,16 @@ def editObscat(rootobs,work,TOPCATPATH):
     temp3 = work+'/tmpobs2.fits'
     temp4 = work+'/summary.fits'
     xtname = 'SOURCES'
-    if catalog == "SUSS": xtname = 1 # 'SRCLIST' or 'Joined'
+    if (catalog == "SUSS") | (catalog == "test2"): xtname = 1 # 'SRCLIST' or 'Joined'
     if not 'obs_epoch' in h[xtname].data.names:
         # passed check not yet edited... 
         
-        command=f"cp {rootobs+bit} {temp1}"
-        print ("\n324 ",command)
+        command=f"cp {rootobs+bit} {temp1}"  # copy SUSS to temp1
+        print ("\neditObscat:561 ",command)
         status = os.system(command)
         if status > 0: print(f"Error in {command} ")
         
-        # copy the summary extension to its own file
+        # copy the summary extension to its own file  SUSS-SUMMARY to temp4
         command=f"java -jar {TOPCATPATH}/topcat-full.jar -stilts tpipe "+\
         f"in={temp1+'#2'} ifmt=fits out={temp4} ofmt=fits-basic"
         print ("\n331 ",command)
@@ -568,18 +622,17 @@ def editObscat(rootobs,work,TOPCATPATH):
         if status > 0: print(f"Error in {command} ")
        
         # edit the dates in the uvotssc2 input file to MJD
-        if not (catalog == 'SUSS'):
+        if (catalog == 'UVOTSSC2'):  # copy cat-SRCxxx to temp2, add MJD  
            command=f"java -jar {TOPCATPATH}/topcat-full.jar -stilts tpipe "+\
     f"in={temp1+'#2'} ifmt=fits out={temp2} ofmt=fits-basic "+\
     f"cmd='addcol -units d MJD_START isoToMjd(DATE_MIN)' "+\
     f"cmd='addcol -units d MJD_END isoToMjd(DATE_MAX)' "+\
     f"cmd='delcols DATE_M*' "
-     #   else: 
-     #       pass
-     #       command=f"cp {temp4} {temp2}"
-           print ("\n342 ",command)
-           status = os.system(command)
-           if status > 0: print(f"Error in {command} ")
+        else: 
+           command=f"cp {temp4} {temp2}" # copy SUSS-SRCxxx to temp2
+        print ("\neditObscat587 ",command)
+        status = os.system(command)
+        if status > 0: print(f"Error in {command} ")
                 
         print (f"\nnow recombine with summary ")
         command=f"java -jar {TOPCATPATH}/topcat-full.jar -stilts "+\
@@ -616,7 +669,7 @@ def getEpochObscat(ep1,ep2,rootobs,obs_cat):
         print (f"processing {bit}")
         d = fits.open(rootobs+bit)
         td = Table(d[1].data)
-        if catalog != "SUSS" :
+        if not ((catalog == "SUSS") |(catalog == "test2")) :
             td.add_column(np.max([td['RA_ERR'],td['DEC_ERR']]),name='POSERR')
             dd = td[keepcol]
         else: dd= td    
@@ -856,7 +909,7 @@ def mainx():
         t2 = time.time()
         merged_out = f"cat_out_{ep1:06.1f}.fits"
         match2gaia_cat(root='.', catin=obs_cat ,cat_matched='matched.fits',\
-          cat_nomatch='nomatch.fits', gaia_epoch=2016.0, \
+          cat_nomatch='nomatch.fits', gaia_epoch=GaiaEpoch, \
           obsEpochRange=[ep1,ep2],toEpochs=[2000.0], gaia_cat=gaia_temp_cat,\
           outputf=merged_out )
      
