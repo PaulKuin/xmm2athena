@@ -14,7 +14,6 @@
 #  stage 2, June 19, 2023, npmk
 
 
-# globals
 import os
 import numpy as np
 import numpy.ma as ma
@@ -26,6 +25,8 @@ from astropy.table import Table, Column, MaskedColumn
 #  return median, skew, etc.
 # not yet: ABmag upper limits from SUMMARY 
 
+########################################################################################
+# globals
 # define globals:
 
 # output filename : see fileio() how it is being derived
@@ -36,9 +37,11 @@ colsofinterest = ["IAUNAME","SRCNUM","obs_epoch","OBSIDS","EPOCHS",'UVW2_ABMAG',
 
 iauname="IAUNAME" 
 bands=['UVW2','UVM2','UVW1','U','B','V']  # I think White is absent
-#catalog = 'UVOTSSC2'
-catalog = 'SUSS'
+
+catalog = 'test2' # 'SUSS' 'UVOTSSC2'
 outtable = None
+matched2gaia = "sussxgaiadr3_ep2000.fits"
+
 
 if catalog == 'SUSS':
     rootobs = '/Users/data/catalogs/suss_gaia_epic/'
@@ -50,8 +53,13 @@ elif catalog == 'UVOTSSC2':
 elif catalog == 'test':
     rootobs = '/Users/data/catalogs/uvotssc2/'
     chunk = 'test_sources.fits'
+elif catalog == 'testsuss':
+    rootobs = '/Volumes/DATA11/data/catalogs/test/'
+    chunk = "sussxgaiadr3_ep2000_singlerecs.csv"   
 
 tmax = np.long(500000000) # mximum number of records to read in (adjust for test)
+################ END GLOBAL SECTION ######################################################
+
 
 def make_chunks(chunk, dn=3020000):
     """
@@ -122,15 +130,6 @@ def make_new(tx):
     # remove and add columns to main table
     tx.remove_columns(['N_SUMMARY','N_OBSID'])
     for  b in bands:
-        #if catalog == 'SUSS': 
-           # tx.remove_columns([ b+'_RATE',b+'_RATE_ERR',b+'_SKY_IMAGE'])
-           # tx.remove_columns([ b+'_VEGA_MAG',b+'_VEGA_MAG_ERR'])
-           # tx.remove_columns([b+"_MAJOR_AXIS",b+"_MINOR_AXIS",b+"_POSANG"])
-           # tx.add_columns([0.,0.,None,None,0.],
-           #     names=[b+"_CHISQ",b+"_NOBS",b+'_AB_MAG_MIN',b+'_VAR3',b+'_SKEW'])  
-        #elif catalog == 'UVOTSSC2':        
-           # tx.add_columns([0.,0.,None,None,0.],
-           #    names=[b+"_CHISQ",b+"_NOBS",b+'_ABMAG_MIN',b+'_VAR3',b+'_SKEW'])  
         tx.remove_columns(["OBSID","obs_epoch"])
         tx.add_columns( [None,None,None,None],names=['IAUNAME2','EPOCHS','OBSIDS','SRCNUMS']  ) 
         # NOTE: REFID = number of filters observed
@@ -231,7 +230,7 @@ def stats(array, err=[None], syserr=0.005, nobs=None, chi2=None, sd=None, skew=N
     return n, median, ncChisq, sd, sk, V3   
       
 
-def fileio(infile,outstub="_stage2_v2_srcnum",outdir=""):
+def fileio(infile,outstub="_stage2",outdir=""):
     #
     # use the input file name infile to construct the output filename
     # open the output file
@@ -263,15 +262,6 @@ def fileio(infile,outstub="_stage2_v2_srcnum",outdir=""):
     if len(t) < 1:
         raise IOError("the catalogue table loading failed.\n")   
         
-    #if catalog == 'UVOTSSC2': #add the same kind of column as in SUSS for the processing
-    #    # add the logical quality columns
-    #    bands=['UVW2','UVM2','UVW1','U','B','V']  # I think White is absent
-    #    for band in bands:
-    #        decimalflag = t[band+"_QUALITY_FLAG"]
-    #        out = []
-    #        for flag in decimalflag:
-    #           out.append(qual_dec2qual_stflag(flag))
-    #        t.add_column(out,name=band+"_QUALITY_FLAG_ST")
             
     outfile=instub+outstub+".csv"
     outf = open(outdir+outfile,'w')  # file handle
@@ -316,9 +306,9 @@ def evaluate_extended_nature(tsrc):
     bands=['UVW2','UVM2','UVW1','U','B','V']  # I think White is absent
     base = {'UVW2':255,'UVM2':255,'UVW1':255,'U':255,'B':255,'V':255}
     for band in bands:
-       if catalog == 'SUSS':
+       if (catalog == 'SUSS') | (catalog == "testsuss"):
            exflag = tsrc[band+'_EXTENDED_FLAG']
-       elif catalog == 'UVOTSSC2':
+       elif (catalog == 'UVOTSSC2') | (catalog == "test"):
            exflag = tsrc[band+'_EXTENDED']
        q = exflag != 255
        if np.sum(q) > 0:
@@ -381,30 +371,6 @@ def qual_st_merge(qual_st,err=0.02):
           qa = ma.min(aa) == aa
           k = ma.where(qa)[0]
           qualout = qual_st[k][0]
-          #   print (f"387 {qualout}, len -> {len(qualout)}")
-          # qualout sets the same flags as in SUSS5.0
-          # force extended and bright star 
-          
-          #print (f"390 qualout is {qualout}, len -> {len(qualout)}, {type(qualout)}\n")        
-          #for k in range(len(qual_st)):  # all rows
-          #  if ~qual_st.mask[k]:
-          #    rerank = False
-          #    if qual_st[k][6] == 'T':
-          #        x = list(qualout)
-          #        x[6] = 'T'
-          #        qua = ""
-          #        qualout=qua.join(x)
-          #        rerank = True
-          #    if (qual_st[k][8] == 'T') and (err[k] < 0.03):   
-          #        x = list(qualout)
-          #        x[8] = 'T'
-          #        qua = ""
-          #        qualout=qua.join(x)
-          #        rerank = True
-          #if rerank:
-          #    aa =  ranked_qual_st2qual(ma.asarray([qualout]))
-          #    ranked_quals = aa[0]   
-          #print (f"qualout to return is {qualout}, len -> {len(qualout)}\n")     
           if qualout.strip() == 'T':
               raise RuntimeError(f"398 return value error {qualout}\n input was {qual_st} err={err}")   
              
@@ -456,12 +422,10 @@ def ranked_qual_st2qual(qual_st):
     return ma.masked_values(aa,None) # ditto
  
 
-
-
 ########## main ()  
 
 
-def mainsub(chunk):
+def mainsub2(chunk):
     # get list of unique sources, output file handle, table, summary
     tx, outf, sources, ty, outf2 = fileio(rootobs+chunk)
     # edit the columns 
@@ -508,18 +472,6 @@ def mainsub(chunk):
             ##print (f"473 nrow={nrow}, {tab_ma.size},  tab_src={tab_src} ;--> {type(tab_src)} ; tab_ma={tab_ma}")   
             #oep = tab_src[0]['obs_epoch']
             idup = [0]
-            #for itn in np.arange(1,nrow):
-            #    if tab_src[itn]['obs_epoch'] != oep:
-            #        idup.append(itn)
-            #        oep = tab_src[itn]['obs_epoch']
-            #if len(idup) < nrow:
-            #    #print (f"*********\n duplicate records found nrow={nrow}, rows={idup}:\n")
-            #    #print(f"\n ********* original: {tab_src[colsofinterest]} \n ******* corrected: {tab_src[idup][colsofinterest]}\n")
-            #    if fix_duplicate:  # test found match but different observed filters
-            #       tab_src = tab_src[idup]
-            #       nrow = len(idup)
-            #       tab_ma = ma.asarray(tab_src)
-            #       # test found new_row['obs_epoch'] not to be adjusted? Output corruption
                 
         if type(tab_src) != astropy.table.row.Row: # is Table object ?
             new_row = tab_src[0] # on new row per iauname  
@@ -552,7 +504,7 @@ def mainsub(chunk):
             qf_q = qfaa != ''
             if nrow > 1:
                 # QUALITY   
-                if catalog == 'SUSS':
+                if (catalog == 'SUSS') | (catalog == "testsuss"):
                     qf = qf[qf_q]
                     if len(qf) > 1:
                         # now make second check whether parallax_over_error and pm are same
@@ -576,7 +528,7 @@ def mainsub(chunk):
                     else:
                         qual_st_out,ranked_quals, qual_out = "", "", -2147483648
                  
-                elif catalog == 'UVOTSSC2':
+                elif (catalog == 'UVOTSSC2') | (catalog == "test"):
                     qual_st_out,ranked_quals = qual_st_merge(qf,err=tab_src[band+"_ABMAG_ERR"])
                     qual_out = qual_stflag2decimal(qual_st_out)
                     ix = qual_st_out == -999
@@ -590,7 +542,7 @@ def mainsub(chunk):
                 new_row[band+'_QUALITY_FLAG_ST'] = qual_st_out
                 new_row[band+'_QUALITY_FLAG'] = qual_out
                 # SIGNIFICANCE  - pick best value - not sure if in SUSS
-                if catalog == 'UVOTSSC2':
+                if (catalog == 'UVOTSSC2') | (catalog == 'test'):
                     signif = tab_src[band+"_SIGNIF"]
                     signif = signif.data
                     qsignif = signif[np.isfinite(signif)]
@@ -605,7 +557,7 @@ def mainsub(chunk):
           #     combine_a_set_of_(tab_src[band+"_AB_MAG"],
           #        tab_src[band+"_AB_MAG_ERR"],N=5,
           #        qual=new_row[band+"_QUALITY_FLAG"])
-            if catalog == 'SUSS':
+            if (catalog == 'SUSS') | (catalog == "testsuss"):
                 magx = tab_src[band+"_AB_MAG"]
                 errx = tab_src[band+"_AB_MAG_ERR"]
                 #print (f"magx={magx}, errx={errx}")
@@ -619,7 +571,7 @@ def mainsub(chunk):
                 new_row[band+'_AB_MAG'] = med_mag
                 new_row[band+'_AB_MAG_ERR'] = sigma_mag
                 new_row[band+'_AB_MAG_MIN'] = min_mag
-            elif catalog == 'UVOTSSC2':    
+            elif (catalog == 'UVOTSSC2') | (catalog == "test"):    
                 magx = tab_src[band+"_ABMAG"]
                 errx = tab_src[band+"_ABMAG_ERR"]
                 nObs, med_mag, chisq, sigma_mag, skew, var3 = stats(magx,err=errx,syserr=0.005)    
@@ -631,86 +583,23 @@ def mainsub(chunk):
             new_row[band+'_CHISQ'] = chisq
             new_row[band+'_SKEW'] = skew
             new_row[band+'_NOBS'] = nObs
-            if catalog == 'SUSS':
+            if (catalog == 'SUSS') | (catalog == "testsuss"):
                 new_row[band+'_EXTENDED_FLAG'] = base[band]  
-            elif catalog == 'UVOTSSC2':
+            elif (catalog == 'UVOTSSC2') | (catalog == "test"):
                 new_row[band+'_EXTENDED'] = base[band]  
             # edit masks:    
             
-            # same for flux  (removed)
-    #        med_flx, max_flx, sigma_flx, varFlag_flx, mean_flx = \
-    #           combine_a_set_of_(tab_src[band+"_AB_FLUX"],tab_src[band+"_AB_FLUX_ERR"],
-    #             N=5,qual=new_row[band+"_QUALITY_FLAG"])
-    #        new_row[band+'_AB_FLUX'] = med_flx
-    #        new_row[band+'_AB_FLUX_ERR'] = sigma_flx
-    #        new_row[band+'_AB_FLUX_MAX'] = max_flx    
         # perhaps change mask value here for some cols
         create_csv_output_record(new_row,outf,col,nc)  
-        #if k9 == 1:
-        #   outtable = Table(new_row)
-        #outtable.add_row(new_row) # perhaps use vstack?
     # write records without PM 
     for trow in ty:
         create_csv_output_record(trow,outf,col,nc)
-    #outfits = rootobs+chunk[:-4]+".fits"     
     outf.close()
     outf2.close()
-    #outtable.write(outfits)
-    #outtable = ""
-
 
 
 
 ######### ######## ####### END
-
-def combine_a_set_of_(mag,err,qual=None,N=3):
-    # DEPRECATEDfor stats()
-    # input is an array for one filter where some values are missing
-    # determine mean, min, max, and 1-sigma
-    # if mean-min or max-mean is larger than N * RMS(sigma,err): set variable flag
-    #
-    # return mean_mag, quality, max_mag, sigma_mag, varFlag_mag
-    mag = ma.asarray(mag)
-    varFlag = ""
-    #print (f"mag line 215 {mag}, type is {type(mag)}\n")
-    # now check if this data has no qual set - then this filter was not observed
-    # use_row = qual > 0
-       
-    q = np.isfinite(mag) 
-    N = len(mag[q])   
-    if N < 2:  # only one good value or None
-       if N == 0:   # # again, filter not observed or only once - no need to average, etc.
-          return None, None, None, varFlag, None
-    
-       med_mag = mean_mag = min_mag = max_mag = mag[q]
-       sigma_mag = err[q]
-       return med_mag, max_mag, sigma_mag, varFlag, mean_mag
-       
-    # N > 1
-    mean_mag = mag[q].mean()
-    sigma_mag = mag[q].std()
-    er=np.min(err[q])
-    #error2 = er*er+sigma_mag*sigma_mag # errors squared on N array elements  
-    min_mag = mag[q].min()
-    max_mag = mag[q].max()
-    med_mag = 0.5*(max_mag+min_mag)
-
-    # variability: 
-    #   (a) find data with lower half error region "best data"
-    #   (b) compute mean mag and standard deviation for that
-    #   (c) set varFlag if there are data outside N*sigma from mean if error on data is 
-    #       small enough , i.e., 3-sigma from mean+3 sigma
-    es = np.asarray( np.sort(err[q]) )
-    nk = np.int(len(es)/2)
-    q2 = es <= es[nk] # (a)
-    if np.sum(q2) <= 1:   # only one left to test 
-        varFlag = ""
-    else:    
-        mean2 = mag[q][q2].mean()  # (b)
-        sigma2 = mag[q][q2].std()  # (b)
-        a = np.abs(mean2 - mag[q][q2]) > N * (np.sqrt(sigma2) + err[q][q2])
-        varFlag = np.int(np.any(len(a) > 0))
-    return med_mag, min_mag, sigma_mag, varFlag, mean_mag
 
 
 
