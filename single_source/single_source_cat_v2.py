@@ -21,15 +21,16 @@
 #
 # original npmk, October-November 2022
 # 
-# planned updates for v2:
+# updates for v2:
 # calculate the median instead of the middle of the magnitudes, ie, sort the values, 
 #   take the the one at index halfway
-# calculate the chi-squared for variability
-# report the max and min magnitudes
-# report the OBSIDs as a merged list
+# calculate the chi-squared for variability 
+#    for version 2.1 also calculate chisq-reduced for quality=0 data
+# report the brightest magnitude
+# report the OBSIDs, epochs, and SRCNUM as a merged list
+#    remaining :
 #  ? report upper limits if observed same source in other filter (from summary)  
 # merged extended & variability flags needed ? 
-#
 #
 # to do: fail calculating mag_min, due to failed masks, so -999 is always lowest
 #
@@ -38,7 +39,7 @@
 #    @npmkuin, 2023, Copyright 2023-2025, license 3-clause BSD style (see github.com/PaulKuin)
 
 __version__ = 2.1
-
+########################################################################################
 # globals
 import os
 import numpy as np
@@ -61,7 +62,7 @@ colsofinterest = ["IAUNAME","obs_epoch","OBSIDS","EPOCHS",'UVW2_ABMAG','UVM2_ABM
 iauname="IAUNAME" 
 bands=['UVW2','UVM2','UVW1','U','B','V']  # I think White is absent
 #catalog = 'UVOTSSC2'
-catalog = 'SUSS'
+catalog = 'testsuss' #'SUSS'
 outtable = None
 
 if catalog == 'SUSS':
@@ -69,16 +70,25 @@ if catalog == 'SUSS':
     chunk = 'XMM-OM-SUSS5.0.fits'
     sussdir= '/Users/data/catalogs/suss_gaia_epic/'
     suss='XMM-OM-SUSS5.0.fits'
+    summary_file = "suss_summary.fits"
 elif catalog == 'UVOTSSC2':
     rootobs = '/Users/data/catalogs/uvotssc2/'
-    chunk =  'uvotssc2_in_photometry.fits'  #'uvotssc2_in_photometry.fits'  'test_main_in500k.fits' # combine the files in  one with fix_uvotssc2.combine_input_files
+    chunk =  'uvotssc2_in_photometry.fits'  
+    #'uvotssc2_in_photometry.fits'  'test_main_in500k.fits' 
+    # combine the files in  one with fix_uvotssc2.combine_input_files
 elif catalog == 'test':
     rootobs = '/Users/data/catalogs/uvotssc2/'
     chunk = 'test_sources.fits'
+elif catalog == 'testsuss':
+    rootobs = '/Volumes/DATA11/data/catalogs/test/'
+    chunk = "sussxgaiadr3_ep2000.fits"   
+    summary_file = "test_cat_summary.fits"
 
-#tmax = np.long(500000000) # mximum number of records to read in for test
-tmax = 500000000 # mximum number of records to read in for test
-  # set tmax =  
+#output file name is by appending "_singlerecs" to input file name (see fileio() ).
+tmax = 500000000 # maximum number of records to read in for test
+
+################ END GLOBAL SECTION ######################################################
+
 
 def make_chunks(chunk, dn=3020000):
     """
@@ -141,15 +151,15 @@ def make_new(tx):
     # remove and add columns to main table
     tx.remove_columns(['N_SUMMARY','N_OBSID'])
     for  b in bands:
-        if catalog == 'SUSS': 
+        if (catalog == 'SUSS') | (catalog == "testsuss"): 
             tx.remove_columns([ b+'_RATE',b+'_RATE_ERR',b+'_SKY_IMAGE'])
             tx.remove_columns([ b+'_VEGA_MAG',b+'_VEGA_MAG_ERR'])
-            tx.remove_columns([b+"_MAJOR_AXIS",b+"_MINOR_AXIS",b+"_POSANG"])
-            tx.add_columns([0.,0.,None,None,0.],
-                names=[b+"_CHISQ",b+"_NOBS",b+'_AB_MAG_MIN',b+'_VAR3',b+'_SKEW'])  
-        elif catalog == 'UVOTSSC2':        
-            tx.add_columns([0.,0.,None,None,0.],
-               names=[b+"_CHISQ",b+"_CHISQ_ALL",b+"_NOBS",b+'_ABMAG_MIN',b+'_VAR3',b+'_SKEW'])  
+            tx.remove_columns([ b+"_MAJOR_AXIS",b+"_MINOR_AXIS",b+"_POSANG"])
+            tx.add_columns([0.,0.,0.,None,0.],
+                names=[b+"_CHI2RED",b+"_CHISQ",b+"_NOBS",b+'_AB_MAG_MIN',b+'_SKEW'])  
+        elif (catalog == 'UVOTSSC2') | (catalog == "test"):        
+            tx.add_columns([0.,0.,0.,None,0.],
+               names=[b+"_CHI2RED",b+"_CHISQ",b+"_NOBS",b+'_ABMAG_MIN',b+'_SKEW'])  
 #               names=[b+"_CHISQ",b+"_NOBS",b+'_ABMAG_MIN',b+'_VAR3',b+'_SKEW'])  
             tx.remove_columns([b+"_FLUX",b+"_FLUX_ERR"])
     tx.add_columns([None,None,None],names=['OBSIDS', 'EPOCHS','SRCNUMS'])
@@ -250,7 +260,7 @@ def stats(array, err=[None], syserr=0.005):
     return n, median, ncChisq, sd, sk, V3   
       
 
-def fileio(infile,outstub="_singlerecs_v2_srcnum",outdir=""):
+def fileio(infile,outstub="_singlerecs",outdir=""):
     #
     # use the input file name infile to construct the output filename
     # open the output file
@@ -269,9 +279,13 @@ def fileio(infile,outstub="_singlerecs_v2_srcnum",outdir=""):
     elif (ft[:3] == 'fit'):
        f = fits.open(infile)
        x = f[1].data #[:tmax]  # LIMITED TABLE FOR TESTS
-       summ = f[2].data # summary - has obstimes and exposures of obsids
+       if len(f) == 3:
+           summ = f[2].data # summary - has obstimes and exposures of obsids
+       else:
+           with fits.open(summary_file) as sumfile:
+               sumx = sumfile[1].data
        t = Table(x)   
-       summ = Table(summ)
+       summ = Table(sumx)
        x = ''
        f.close()
     if len(t) < 1:
@@ -332,13 +346,13 @@ def evaluate_extended_nature(tsrc,summ):
     bands=['UVW2','UVM2','UVW1','U','B','V']  # I think White is absent
     base = {'UVW2':255,'UVM2':255,'UVW1':255,'U':255,'B':255,'V':255}
     for band in bands:
-       if catalog == 'SUSS':
+       if (catalog == 'SUSS') | (catalog == "testsuss"):
            exflag = tsrc[band+'_EXTENDED_FLAG']
-       elif catalog == 'UVOTSSC2':
+       elif (catalog == 'UVOTSSC2') | (catalog == "test"):
            exflag = tsrc[band+'_EXTENDED']
        q = exflag != 255
        if np.sum(q) > 0:
-           base[band]= np.int(np.mean(exflag[q]) > 0.5) # more than half say extended
+           base[band]= int(np.mean(exflag[q]) > 0.5) # more than half say extended
     # so valid bands have base not equal to 255 
         # TBD:
     # updates to the base solution:
@@ -553,11 +567,12 @@ def mainsub(chunk):
             qfa2 = qf2.data
             qf_q = qfaa != ''
             qf2_q= qfa2 != ''
+            qual_out = 0
             #print (f"546 qfaa -- {type(qfaa)}  {qfaa} selected: {qf[qf_q]} {len(qf[qf_q])} ")
              
             if nrow > 1:
                 # QUALITY   
-                if catalog == 'SUSS':
+                if (catalog == 'SUSS') | (catalog == "testsuss"):
                     qf = qf[qf_q]
                     if len(qf) > 1:
                         qual_st_out,ranked_quals = qual_st_merge(qf,err=tab_src[band+"_AB_MAG_ERR"])
@@ -567,7 +582,7 @@ def mainsub(chunk):
                         qual_st_out, ranked_quals, qual_out = qf[0], qf[0], qual_stflag2decimal(qf[0])   
                     else:
                         qual_st_out,ranked_quals, qual_out = "", "", -2147483648 # need to define band+quality_flag as a float     
-                elif catalog == 'UVOTSSC2':
+                elif (catalog == 'UVOTSSC2') | (catalog == 'test'):
                     qual_st_out,ranked_quals = qual_st_merge(qf,err=tab_src[band+"_ABMAG_ERR"])
                     qual_out = qual_stflag2decimal(qual_st_out)
                     ix = qual_st_out == -999
@@ -597,12 +612,11 @@ def mainsub(chunk):
           #     combine_a_set_of_(tab_src[band+"_AB_MAG"],
           #        tab_src[band+"_AB_MAG_ERR"],N=5,
           #        qual=new_row[band+"_QUALITY_FLAG"])
-            if catalog == 'SUSS':
+            if (catalog == 'SUSS') | (catalog == "testsuss"):
                 magx = tab_src[band+"_AB_MAG"]
                 errx = tab_src[band+"_AB_MAG_ERR"]
                 #print (f"magx={magx},\nerrx={errx}\n = = = = = next ")
-                nObs, med_mag, chisq, sigma_mag, skew, var3 = stats(magx,err=errx,syserr=0.005)
-                   
+                nObs, med_mag, chisq, sigma_mag, skew, var3 = stats(magx,err=errx,syserr=0.005) 
                 qmag = magx > 5 
                 if len(magx[qmag]) > 0: 
                     min_mag = np.min(magx[qmag])
@@ -612,7 +626,7 @@ def mainsub(chunk):
                 new_row[band+'_AB_MAG'] = med_mag
                 new_row[band+'_AB_MAG_ERR'] = sigma_mag
                 new_row[band+'_AB_MAG_MIN'] = min_mag
-            elif catalog == 'UVOTSSC2':    
+            elif (catalog == 'UVOTSSC2') | (catalog == "test"):    
                 magx = tab_src[band+"_ABMAG"]
                 errx = tab_src[band+"_ABMAG_ERR"]
                 nObs, med_mag, chisq, sigma_mag, skew, var3 = stats(magx,err=errx,syserr=0.005)    
@@ -624,163 +638,28 @@ def mainsub(chunk):
                 new_row[band+'_ABMAG_ERR'] = sigma_mag
                 new_row[band+'_ABMAG_MIN'] = min_mag
             #new_row[band+'_VAR3'] = var3   # variability on 3-sigma 
-            if (qual_out == 0) and (len(qf) > 1):  # there is a good detection amongst list
+            if nrow >1:
+              if (qual_out == 0) and (len(qf) > 1):  # there is a good detection amongst list
                 qchi = qf2[qf2_q] == 0  # index data with qual==0
-                nObs, med_mag, chisq, sigma_mag, skew, var3 = stats(magx[qchi],err=errx[qchi],syserr=0.005)    
-                new_row[band+'_CHISQ'] = chisq   # this should only be based on the qual==0 data points
-            new_row[band+'_CHISQ_ALL'] = chisq   # this is based on any quality 
-            new_row[band+'_SKEW'] = skew
-            new_row[band+'_NOBS'] = nObs
-            if catalog == 'SUSS':
+                nq0 = len(qchi)
+                nObs, med_mag, chisq, sigma_mag, skew, var3 = stats(magx[qchi],err=errx[qchi],syserr=0.005)   
+                if nq0>1: 
+                   new_row[band+'_CHI2RED'] = chisq /(nq0-1)  # this should only be based on the qual==0 data points
+                   
+              new_row[band+'_CHISQ'] = chisq   # this is based on any quality 
+              new_row[band+'_SKEW'] = skew
+              new_row[band+'_NOBS'] = nObs
+            if (catalog == 'SUSS') | (catalog == "testsuss"):
                 new_row[band+'_EXTENDED_FLAG'] = base[band]  
-            elif catalog == 'UVOTSSC2':
+            elif (catalog == 'UVOTSSC2') | (catalog == "test"):
                 new_row[band+'_EXTENDED'] = base[band]  
             # edit masks:    
             
-            # same for flux  (removed)
-    #        med_flx, max_flx, sigma_flx, varFlag_flx, mean_flx = \
-    #           combine_a_set_of_(tab_src[band+"_AB_FLUX"],tab_src[band+"_AB_FLUX_ERR"],
-    #             N=5,qual=new_row[band+"_QUALITY_FLAG"])
-    #        new_row[band+'_AB_FLUX'] = med_flx
-    #        new_row[band+'_AB_FLUX_ERR'] = sigma_flx
-    #        new_row[band+'_AB_FLUX_MAX'] = max_flx    
         # perhaps change mask value here for some cols
         create_csv_output_record(new_row,outf,col,nc)  
-        #if k9 == 1:
-        #   outtable = Table(new_row)
-        #outtable.add_row(new_row) # perhaps use vstack?
     outf.close()
-    #outtable.write(outfits)
-    #outtable = ""
 
 
 
 
-######### ######## ####### END
-
-
-
-
-
-
-
-
-def combine_a_set_of_(mag,err,qual=None,N=3):
-    # DEPRECATEDfor stats()
-    # input is an array for one filter where some values are missing
-    # determine mean, min, max, and 1-sigma
-    # if mean-min or max-mean is larger than N * RMS(sigma,err): set variable flag
-    #
-    # return mean_mag, quality, max_mag, sigma_mag, varFlag_mag
-    mag = ma.asarray(mag)
-    varFlag = ""
-    #print (f"mag line 215 {mag}, type is {type(mag)}\n")
-    # now check if this data has no qual set - then this filter was not observed
-    # use_row = qual > 0
-       
-    q = np.isfinite(mag) 
-    N = len(mag[q])   
-    if N < 2:  # only one good value or None
-       if N == 0:   # # again, filter not observed or only once - no need to average, etc.
-          return None, None, None, varFlag, None
-    
-       med_mag = mean_mag = min_mag = max_mag = mag[q]
-       sigma_mag = err[q]
-       return med_mag, max_mag, sigma_mag, varFlag, mean_mag
-       
-    # N > 1
-    mean_mag = mag[q].mean()
-    sigma_mag = mag[q].std()
-    er=np.min(err[q])
-    #error2 = er*er+sigma_mag*sigma_mag # errors squared on N array elements  
-    min_mag = mag[q].min()
-    max_mag = mag[q].max()
-    med_mag = 0.5*(max_mag+min_mag)
-
-    # variability: 
-    #   (a) find data with lower half error region "best data"
-    #   (b) compute mean mag and standard deviation for that
-    #   (c) set varFlag if there are data outside N*sigma from mean if error on data is 
-    #       small enough , i.e., 3-sigma from mean+3 sigma
-    es = np.asarray( np.sort(err[q]) )
-    nk = np.int(len(es)/2)
-    q2 = es <= es[nk] # (a)
-    if np.sum(q2) <= 1:   # only one left to test 
-        varFlag = ""
-    else:    
-        mean2 = mag[q][q2].mean()  # (b)
-        sigma2 = mag[q][q2].std()  # (b)
-        a = np.abs(mean2 - mag[q][q2]) > N * (np.sqrt(sigma2) + err[q][q2])
-        varFlag = np.int(np.any(len(a) > 0))
-    return med_mag, min_mag, sigma_mag, varFlag, mean_mag
-
-
-"""
-column mapping 
-
-[     'IAUNAME',
- 'N_SUMMARY',
- 'OBSID',      => obsid list?
-      'SRCNUM',
-      'RA',        => observation epoch J2000 
-      'DEC',       => observation epoch J2000
-      'RA2016gaia',       Gaia dr3 merged position ep 2016
-      'DEC2016gaia',      
-      'RAEP2000',        => epoch 2000 J2000 
-      'DECEP2000',       => epoch 2000 J2000 
-      'raObs' => gaia position at Obs epoch
-      'decObs' => gaia position at Obs epoch
-      'POSERR',   
-      'LII',
-      'BII',
- 'N_OBSID',      ?? what is this
-       'UVW2_AB_MAG',       MEDIAN
-       'UVW2_AB_MAG_ERR',   COMPUTE WEIGHTED ? 1-SIGMA ERROR
-       'UVW2_AB_MAG_MAX'
-       'UVM2_AB_MAG',
-       'UVM2_AB_MAG_ERR',
-       'UVM2_AB_MAG_MAX'
-       'UVW1_AB_MAG',
-       'UVW1_AB_MAG_ERR',
-       'UVW1_AB_MAG_MAX'
-       'U_AB_MAG',
-       'U_AB_MAG_ERR',
-       'U_AB_MAG_MAX'
-       'B_AB_MAG',
-       'B_AB_MAG_ERR',
-       'B_AB_MAG_MAX'
-       'V_AB_MAG',
-       'V_AB_MAG_ERR',
-       'V_AB_MAG_MAX'
-       
-              => BEST VALUES WEIGHTED BY EXPOSURE SOMEHOW
- 'UVW2_QUALITY_FLAG',
- 'UVM2_QUALITY_FLAG',
- 'UVW1_QUALITY_FLAG',
- 'U_QUALITY_FLAG',
- 'B_QUALITY_FLAG',
- 'V_QUALITY_FLAG',
- 
- 'UVW2_QUALITY_FLAG_ST',
- 'UVM2_QUALITY_FLAG_ST',
- 'UVW1_QUALITY_FLAG_ST',
- 'U_QUALITY_FLAG_ST',
- 'B_QUALITY_FLAG_ST',
- 'V_QUALITY_FLAG_ST',
-             => SELECT BEST QUALITY 
- 'UVW2_EXTENDED_FLAG',
- 'UVM2_EXTENDED_FLAG',
- 'UVW1_EXTENDED_FLAG',
- 'U_EXTENDED_FLAG',
- 'B_EXTENDED_FLAG',
- 'V_EXTENDED_FLAG',
-             => NEW MERGED EXTENDED FLAGS
-
-        'VAR3'
-        'CHISQ'
-        'NOBS'
- ]
-
-"""
-
-    
+######### ######## ####### END END END END 
