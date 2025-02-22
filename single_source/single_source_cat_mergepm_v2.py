@@ -38,7 +38,7 @@ colsofinterest = ["IAUNAME","SRCNUM","obs_epoch","OBSIDS","EPOCHS",'UVW2_ABMAG',
 iauname="IAUNAME" 
 bands=['UVW2','UVM2','UVW1','U','B','V']  # I think White is absent
 
-catalog = 'test2' # 'SUSS' 'UVOTSSC2'
+catalog = 'testsuss' # 'SUSS' 'UVOTSSC2'
 outtable = None
 matched2gaia = "sussxgaiadr3_ep2000.fits"
 
@@ -46,6 +46,8 @@ matched2gaia = "sussxgaiadr3_ep2000.fits"
 if catalog == 'SUSS':
     rootobs = '/Users/data/catalogs/suss_gaia_epic/'
     chunk = "XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux.fits"
+    pm_colname = pm_cds = "pm_cds" 
+    Rplx_colname = Rplx = "RPlx"
      #"XMM-OM-SUSS5.0_singlerecs_v2xhighpm_probabGThalf.fits"   #"This_is_output_of: single_source_cat_v2"  2023-06-16
 elif catalog == 'UVOTSSC2':
     rootobs = '/Users/kuin/pymodules/cats/' # /Users/data/catalogs/uvotssc2/' 
@@ -55,9 +57,14 @@ elif catalog == 'test':
     chunk = 'test_sources.fits'
 elif catalog == 'testsuss':
     rootobs = '/Volumes/DATA11/data/catalogs/test/'
-    chunk = "sussxgaiadr3_ep2000_singlerecs.csv"   
+    chunk = "sussxgaiadr3_ep2000_singlerecs.csv"  
+    pm_cds = "PM_cds"  # proper motion 
+    Rplx = "RPlx"  # Parallax over Error
 
-tmax = np.long(500000000) # mximum number of records to read in (adjust for test)
+tmax = int(5e8) # mximum number of records to read in (adjust for test)
+
+print (f"checking proper motion in col {pm_cds} and using parallax over error column {Rplx}")
+
 ################ END GLOBAL SECTION ######################################################
 
 
@@ -127,14 +134,14 @@ def chunklist():
    
 def make_new(tx):
     return tx
+    #   OBSOLETE:
     # remove and add columns to main table
     tx.remove_columns(['N_SUMMARY','N_OBSID'])
     for  b in bands:
         tx.remove_columns(["OBSID","obs_epoch"])
         tx.add_columns( [None,None,None,None],names=['IAUNAME2','EPOCHS','OBSIDS','SRCNUMS']  ) 
         # NOTE: REFID = number of filters observed
-    #tx.add_columns([None,None],names=['OBSIDS', 'EPOCHS'])
-           
+    #tx.add_columns([None,None],names=['OBSIDS', 'EPOCHS'])           
     return tx         
 
 def stats(array, err=[None], syserr=0.005, nobs=None, chi2=None, sd=None, skew=None):
@@ -200,7 +207,8 @@ def stats(array, err=[None], syserr=0.005, nobs=None, chi2=None, sd=None, skew=N
        e = np.asarray(err)+syserr
        var = e*e
        # should multiply var with N/(N-1)
-       var = var*na/(na-1)
+       if na >1: var = var*na/(na-1)
+       else: var = None
     if a.ndim > 1: 
        raise IOError(f"median: ithe input is not 1D")
     n = len(a.flatten())  # number for single filter
@@ -244,9 +252,11 @@ def fileio(infile,outstub="_stage2",outdir=""):
     instub = instub[:-1]    
     print (f"reading {infile} ...\n")
     
-    if (ft.lower == 'csv'):
+    if (ft.lower() == 'csv'):
+       print (f"reading input csv file ")
        t = ioascii.read(infile)  # table object
     elif (ft[:3] == 'fit'):
+       print (f"reading input fits file")
        f = fits.open(infile)
        x = f[1].data #[:tmax]  # LIMITED TABLE FOR TESTS
        
@@ -255,14 +265,23 @@ def fileio(infile,outstub="_stage2",outdir=""):
        #summ = Table(summ)
        x = ''
        f.close()
-    print (f"the crashes happen next, so print all the keys to t: {t.colnames}")
+    else:
+       print("problem")
+       raise RuntimeError("Fatal Error: *** input file was not read ***")   
+
+    #print (f"the crashes happen next, so print all the keys to t: {t.colnames}")
     #t.add_column(np.sqrt(t["gaiadr3_pmra"]*t["gaiadr3_pmra"]+t["gaiadr3_pmdec"]*t["gaiadr3_pmdec"]),name="gaiadr3_pm")
-    tx = t[ t["gaiadr3_pm"] > 0. ]
-    ty = t[ np.isnan(t["gaiadr3_pm"])  ]
     if len(t) < 1:
-        raise IOError("the catalogue table loading failed.\n")   
-        
-            
+        raise IOError("the catalogue table loading failed.\n")  
+    
+    print (f"total number of input sources before merging high PM ones is {len(t)}")    
+    # now just limit the processing to high PM entries   (tx) and leave the rest (ty)  
+    try:     
+        tx = t[ t[pm_cds] > 20. ]  
+        ty = t[ (np.isnan(t[pm_cds]) ) | (t[pm_cds] <= 20.)  ]
+    except:
+        print ("279 problem reading table -- colnames are \n {t.colnames}")    
+        exit            
     outfile=instub+outstub+".csv"
     outf = open(outdir+outfile,'w')  # file handle
     outfile2=instub+outstub+"_catch.csv"
@@ -271,11 +290,11 @@ def fileio(infile,outstub="_stage2",outdir=""):
     # we use the astropy to flag data that have the same IAUNAME
     # after that we can call up the record/row selection by that.
     #
-    tx.add_index("gaiadr3_pm")
-    sources = tx["gaiadr3_pm"]
+    tx.add_index(pm_cds)
+    sources = tx[pm_cds]
     sources = np.unique(sources)
     
-    print (f"NUMBER OF UNIQUE SOURCES = {len(sources)}")
+    print (f"NUMBER OF UNIQUE SOURCES : low PM:{len(ty)} high PM: {len(sources)}\n")
     try:
         del f[1].data
         del f[2].data
@@ -312,7 +331,7 @@ def evaluate_extended_nature(tsrc):
            exflag = tsrc[band+'_EXTENDED']
        q = exflag != 255
        if np.sum(q) > 0:
-           base[band]= np.int(np.mean(exflag[q]) > 0.5) # more than half say extended
+           base[band]= int(np.mean(exflag[q]) > 0.5) # more than half say extended
     # so valid bands have base not equal to 255 
         # TBD:
     # updates to the base solution:
@@ -365,9 +384,9 @@ def qual_st_merge(qual_st,err=0.02):
            return qual_st,  ranked_qual_st2qual(qual_st)
        else:
           # convert to ranked and logicals
-         #print (f"{60*'-'}\noriginal {qual_st}\n\ninteger flag values are: {aa}")    
           ranked_quals = aa =  ranked_qual_st2qual(qual_st) #np.array(aa)
-          #print (f"summed rows: {aa}")
+          print (f"qual_st_merge 383 {60*'-'}\noriginal {qual_st}\ninteger flag values are: {aa}")    
+          print (f"qual_st_merge385 summed rows: {aa}")
           qa = ma.min(aa) == aa
           k = ma.where(qa)[0]
           qualout = qual_st[k][0]
@@ -407,6 +426,10 @@ def qual_dec2qual_stflag(decimalflag):
 
 def ranked_qual_st2qual(qual_st):
     # convert string qual to number qual after ranking with f_rk 
+    if type(qual_st) == str: 
+       if not (("F" in qual_st) | ("T" in qual_st)):
+          print (f"single_source_cat_merge_v2.ranked_qual_st2qual426 qual_st input is {qual_st} in error")
+       print (f"single_source_cat_merge_v2.ranked_qual_st2qual426 expected an array of quality ")   
     aa = []
     for k in range(qual_st.size):  # all rows
         x = ma.asarray(qual_st[k])
@@ -432,7 +455,7 @@ def mainsub2(chunk):
     t = make_new(tx) # remove and add columns to the Table
     #print(t[:20],"\n")
     
-    # write column HEADERS
+    # write column HEADERS to ascii/csv file
     col = t.colnames
     nc = len(col)
     for k in range(nc-1): 
@@ -443,32 +466,50 @@ def mainsub2(chunk):
     #print("evaluating ",col," sources\n")
     k9 = 0    # counter records
 
+    # first with the sources with low PM
+    for trow in ty:
+        create_csv_output_record(trow,outf,col,nc)
+        k9 += 1
+
     for src in sources[:]:   
+        print (f"now check for sources with multiple records with same PM (which have likely moved) ")
         if int(k9/100)*100 == k9:
             print (f"> merging src number={k9}, source={src} ");     
         k9+=1
         if src == np.nan:
-            for trow in ty:
-                create_csv_output_record(trow,outf,col,nc)
+        #    for trow in ty:
+        #        create_csv_output_record(trow,outf,col,nc)
             outf.close()
             outf2.close()
             stop
         try:
            tab_src = t.loc[src]
+           print (f"478 {k9}\n{tab_src['IAUNAME']} ")
         except:
-            for trow in ty:
-                create_csv_output_record(trow,outf,col,nc)
+            #for trow in ty:
+            #    create_csv_output_record(trow,outf,col,nc)
+            print (f"491 problem locating {src} in t")
             outf.close()
             outf2.close()
             stop
            
         tab_ma = ma.asarray(tab_src)
         nrow = tab_ma.size
+                
             
-        # now check if there are doubles and remove those based on obs_epoch and iauname (src)
+        # now check if there are double entries and remove those based on obs_epoch and iauname (src)
         if nrow > 1:
             tab_src = Table(tab_src)
-            #tab_src.sort('obs_epoch')
+        # check if the distance between entries is reasonable
+            ra1 = tab_src['ra2000Ep']
+            de1 = tab_src['dec2000Ep']
+            dist = np.sqrt( (ra1[1:]-ra1[0])**2 + (de1[1:]-de1[0])**2 ) * 60.
+            qset = dist < 20 # distance from first row is within 20 arcminutes
+            qset.insert(0,True)
+            if sum(qset) < nrow:
+               tab_src = tab_src[qset]
+               tab_ma = ma.asarray(tab_src)
+               nrow = tab_ma.size
             ##print (f"473 nrow={nrow}, {tab_ma.size},  tab_src={tab_src} ;--> {type(tab_src)} ; tab_ma={tab_ma}")   
             #oep = tab_src[0]['obs_epoch']
             idup = [0]
@@ -478,11 +519,14 @@ def mainsub2(chunk):
         else: 
             new_row = tab_src  # is Table Row
             
+        if nrow < 2:    
+                create_csv_output_record(tab_src,outf,col,nc) 
+                continue 
+            
         base = evaluate_extended_nature(tab_src)
         if nrow == 1:
+            print (f"528 nrow == 1 - should not have gotten here")
             pass
-            #new_row['OBSIDS'] = tab_src['OBSID']
-            #new_row['EPOCHS'] = tab_src['obs_epoch']
         else:
             obsidlist = tab_src['OBSIDS'][0]
             epochlist = str(tab_src['EPOCHS'][0])
@@ -495,11 +539,13 @@ def mainsub2(chunk):
             new_row['EPOCHS'] = epochlist
             new_row['SRCNUMS']= srcnumlist
                 
-        #print (f"491 tab.ma.size={nrow}\n new_row is\n{new_row}; type is {type(new_row)}\n***\n")
-        #print (f"OBSIDS, EPOCHS:\n{new_row['OBSIDS']}\n{new_row['EPOCHS']}")    
+        #
+        print (f"=== === === === === \n491 tab.ma.size={nrow}\n new_row is\n{new_row};\ntype is {type(new_row)}\n === === === === === 491\n")
+        print (f"OBSIDS, EPOCHS:\n{new_row['OBSIDS']}\n{new_row['EPOCHS']}")    
                 
-        for band in bands:
+        for band in bands:   # loop over all filters 
             qf = tab_ma[band+"_QUALITY_FLAG_ST"]
+            print (f"523 checking {band}: quality_flag_st qf = {qf}\n qf.data={qf.data}523\n")
             qfaa = qf.data
             qf_q = qfaa != ''
             if nrow > 1:
@@ -507,8 +553,9 @@ def mainsub2(chunk):
                 if (catalog == 'SUSS') | (catalog == "testsuss"):
                     qf = qf[qf_q]
                     if len(qf) > 1:
+                        print (f"529 qf={qf}  err=\n{tab_src[band+'_AB_MAG_ERR']}")
                         # now make second check whether parallax_over_error and pm are same
-                        plxoe = tab_ma['gaiadr3_parallax_over_error']   
+                        plxoe = tab_ma[Rplx]   
                         for pk in range(1,len(plxoe)):
                            if plxoe[0] != plxoe[pk]:
                               print (f"plx/error not consistent: writing to outf2 tab_src[pk]")
@@ -592,8 +639,8 @@ def mainsub2(chunk):
         # perhaps change mask value here for some cols
         create_csv_output_record(new_row,outf,col,nc)  
     # write records without PM 
-    for trow in ty:
-        create_csv_output_record(trow,outf,col,nc)
+    #for trow in ty:
+    #    create_csv_output_record(trow,outf,col,nc)
     outf.close()
     outf2.close()
 
