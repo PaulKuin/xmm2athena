@@ -7,7 +7,8 @@ java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/349/p
 echo   SUSS_PS.fits Pan-Starrs done
 date
 echo 
-java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/249/catalog in=singlesourcecat2.fits out=SUSS_SM.fits find=each  ra=ra2000Ep dec=dec2000Ep radius=3 
+#java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/358/smss in=singlesourcecat2.fits out=SUSS_SMdr1.1.fits find=each  ra=ra2000Ep dec=dec2000Ep radius=3 
+java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/379/smssdr4 in=singlesourcecat2.fits out=SUSS_SMdr4.fits find=each  ra=ra2000Ep dec=dec2000Ep radius=3 
 echo   SUSS_SM.fits    Sky Mapper done
 date                 
 echo 
@@ -27,7 +28,7 @@ java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/316/g
 echo        UKIDSS GPS 
 date    
 echo 
-java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/343/viking2 in=singlesourcecat2.fits out=SUSS_VI.fits find=each  ra=ra2000Ep dec=dec2000Ep radius=3 
+java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/343/viking2 in=singlesourcecat2.fits out=SUSS_VIK.fits find=each  ra=ra2000Ep dec=dec2000Ep radius=3 
 echo        VISTA VIKING DR2 
 date                   
 echo 
@@ -35,7 +36,7 @@ java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/367/v
 echo        VISTA  VHS DR5
 date                 
  echo 
-java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/328/allwise in=singlesourcecat2.fits out=SUSS_WISE.fits find=each  ra=ra2000Ep dec=dec2000Ep radius=3 
+java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/328/allwise in=singlesourcecat2.fits out=SUSS_WIS.fits find=each  ra=ra2000Ep dec=dec2000Ep radius=3 
 echo        AllWISE
 date                 
            
