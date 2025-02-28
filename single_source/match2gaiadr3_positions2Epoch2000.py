@@ -102,10 +102,10 @@ gaiaHP   = ROOT+'data/catalogs/gaiadr3_healpix.fits' # gaiacat with healpix col.
 gaiaObsidTable = work+'/gaiadr3_obsid_tiles.fits'
 GaiaEpoch = 2016.0
 
-process_epoch_range = [2000.0, 2026.1] #[2007.7,2007.9]# [2005.0,2022.2]
+process_epoch_range = [2005.0, 2024.0] #[2007.7,2007.9]# [2005.0,2022.2]
 process_epoch_step  = 0.1 # if making smaller, edit filenames which assume 0.1yr
 
-catalog             = 'test2' # options are: 'UVOTSSC2', 'SUSS', 'test'
+catalog             = 'SUSS' #'test2' # options are: 'UVOTSSC2', 'SUSS', 'test'
 
 RADIUS        = 20./60 # circular area in arcsec to include in search for PM objects
 gaia_temp_cat = work+"/gaiadr3_selected_4epoch.fits" 
@@ -175,12 +175,18 @@ class finalise(object):
        self.infiles_nomatch = ""
        x = os.listdir(self.indir)
        for a in x:
-           if a[:8] == 'cat_out_': 
+           if a[:8] == 'cat_out_':  
                self.infiles.append(a)
-               self.infiles_match   += a+"#1 "
-               self.infiles_nomatch += a+"#2 "
+               if a[-7:-5] == "-1":
+                   self.infiles_match   += a+" "
+               elif a[-7:-5] == "-2":    
+                   self.infiles_nomatch += a+" "
+               else:
+                   raise RuntimeError(f"match2gaiadr2_ *finalise.init(): I found file {a}!!! but there should not be a cat_out_ file that is not -1 or -2 type.")    
        if (self.infiles_match=="" )| (self.infiles_nomatch==""):
-           raise RuntimeError(f"finalise.init: no files found infiles_match={self.infiles_match} infiles_nomatch={self.infiles_nomatch}")        
+           raise RuntimeError(f"match2gaiadr3_* finalise.init: no files found infiles_match={self.infiles_match} infiles_nomatch={self.infiles_nomatch}")        
+       self.cleanup = "rm  epoch_slice_cat.fits gaiadr3_obsid_tiles.fits gaiadr3_selected_4epoch.fits tmp_aaa_1.fit"
+
 
    def stilts_process(self):
        # match a nomatch table to gaiadr3 using cdsskymatch 
@@ -203,27 +209,74 @@ class finalise(object):
        
        print ("deleting temporary files")
        status=os.system("rm tmp_aaa* tmp_gaia_pm_m*")
+       status=os.system(self.cleanup)
        
        
    def stilts_merge(self):
        # merge the list of tables using stilts tcat     
        import os
+       # since the previous processing sometimes add some columns for GroupSize and GroupID, 
+       # for now we make sure the match extension is present, and keep columns 1-138 only
+       #     - this was solved - 
+       """
+       from astropy.io import fits
+       from astropy.table import Table
+       filmat = ""
+       filnomat = ""
+       for fil in self.infiles_match:
+           filout  = fil[:-5]+"-1.fits"
+           filout1 = "tmpfil-1.fits"  # temp first extension (may have duplicate col names!
+           filout2 = fil[:-5]+"-2.fits"
+           x = fits.open(fil)
+           try:
+               t = Table (x["PMMATCH"].data)
+               filmat += filout+" "
+               t.write(filout1,format='fits',overwrite=True)
+               command=f'java -jar ~/bin/topcat-full.jar -stilts tpipe in={filout1} out={filout}  cmd="keepcols $1-$138"'
+               status = os.system(command)
+               if status > 0: print(f"finalise.stilts_merge 229 Error in {command} ")
+           except: 
+               print (f"finalise.stilts_merge 231 - failure with {fil}[PMMATCH] ")    
+           try:
+               t2 = Table( x["NOMATCH"].data)
+               filnomat += filout2
+               t2.write(filout2,format='fits',overwrite=True)
+           except:
+               print (f"finalise.stilts_merge 237 no NOMATCH extension in {fil}")    
+           print (f"writing {filout}")
+           
+       command1 = f"java -jar ~/bin/topcat-full.jar -stilts tcat in='{filmat}' "+\
+         f" ifmt=fits out={self.matchout}  ofmt=fits lazy=True"  
+       print ("\nfinalise.merge match merge :\n"+command1+"\n")  
+       status=os.system(command1)
+       if status > 0: print(f"finalise.stilts_merge 249 Error in {command1} ")
+
+       command2 = f"java -jar ~/bin/topcat-full.jar -stilts tcat in='{filnomat}' "+\
+         f" ifmt=fits out={self.nomatch}  ofmt=fits lazy=True "               
+       print (f"in finalise.stilt_merge commands: \n{command2}\n")
+       status=os.system(command2)
+       if status > 0: print(f"finalise.stilts_merge 251 Error in {command2} ")    
+       """
+       
        command1 = f"java -jar ~/bin/topcat-full.jar -stilts tcat in='{self.infiles_match}' "+\
          f" ifmt=fits out={self.matchout}  ofmt=fits lazy=True"  #+\
          #f" icmd='delcols GroupID' icmd='delcols GroupSize' icmd='delcols Separation' icmd='delcols 2000Ep' "+\
-           
+       print (f"in finalise.stilt_merge commands: \n{command1}\n")
+       status=os.system(command1)
+       if status > 0: 
+           print(f"finalise.stilts_merge 263 Error in :\n{command1}\n\n ")
+           raise RuntimeError()
+          
                  
        command2 = f"java -jar ~/bin/topcat-full.jar -stilts tcat in='{self.infiles_nomatch}' "+\
          f" ifmt=fits out={self.nomatch}  ofmt=fits lazy=True " # +\
-         #" icmd='delcols GroupID' icmd='delcols GroupSize' icmd='delcols Separation' icmd='delcols 2000Ep' "
-        
-                  
-       print (f"in finalise.stilt_merge commands: \n{command1}\n\n{command2}\n")
-      
-       status=os.system(command1)
-       if status > 0: print(f"finalise.stilts_merge 249 Error in {command1} ")
+         #" icmd='delcols GroupID' icmd='delcols GroupSize' icmd='delcols Separation' icmd='delcols 2000Ep' "                
+       print (f"in finalise.stilt_merge commands: \n{command2}\n")     
        status=os.system(command2)
-       if status > 0: print(f"finalise.stilts_merge 251 Error in {command2} ")
+       if status > 0: 
+           print(f"\nfinalise.stilts_merge 271 Error in \n{command2}\n\n ")
+           raise RuntimeError()
+       
        
    def match2gaiadr3(self,):
        # 
@@ -234,9 +287,9 @@ class finalise(object):
        import os
        
        command4 = f"/bin/csh ~/bin/stilts_fin_match2gaia.sh {self.matchout} {self.nomatch} {self.outfile}"
-       print (f"finalise.match2gaiadr3 call stilts_fin_match2gaia.sh: \n{command4}\n")
+       print (f"finalise.match2gaiadr3 -- call stilts_fin_match2gaia.sh: \n{command4}\n")
        status = os.system(command4)
-       if status > 0: print(f"finalise.match2gaiadr3 280 Error in {command4} ")
+       if status > 0: print(f"finalise.match2gaiadr3 285 Error in {command4} ")
        
        
 # end class finalise()       
@@ -500,6 +553,8 @@ def match2gaia_cat(root='.',catin=None,cat_matched=None,cat_nomatch=None,
     matchout = "tmp_aaa_2.fits"
     nomatchout = "tmp_aaa_3.fits"
     gcatin = gaia_cat
+    outputf1 = outputf[:-5]+"-1.fits"
+    outputf2 = outputf[:-5]+"-2.fits"
 
     print ('1 precess')
     # precess gaiadr3_pmxxx to midEpoch -> (raObs,decObs):
@@ -508,9 +563,9 @@ def match2gaia_cat(root='.',catin=None,cat_matched=None,cat_nomatch=None,
     f'cmd="addcol epxxxx epochProp({midEpoch}-{gaia_epoch},ra,dec,parallax,pmra,pmdec,0.)" '+\
     f"cmd='addcol raObs pick(epxxxx,0)[0];addcol decObs pick(epxxxx,1)[0]' "+\
     f"cmd='delcols 'epxxxx';addcol obsEp {midEpoch}'" 
-    print (command)
+    #print (command)
     status = os.system(command)
-    if status > 0: print(f"242 Error in {command} ")
+    if status > 0: print(f"560 Error in {command} ")
 
     print('2 match')
     # match 
@@ -518,13 +573,13 @@ def match2gaia_cat(root='.',catin=None,cat_matched=None,cat_nomatch=None,
     f"tmatch2 in1={catin} ifmt1=fits  in2={gaiaout} ifmt2=fits "+\
     f"out={matchout} ofmt=fits-basic  matcher=skyerr "+\
     f"values1='RA DEC POSERR' values2='ra dec ra_error*0.001'  "+\
-    f" params={match_par}   join=1and2 find=best2 fixcols=dups suffix1=  suffix2=2016gaia  "
-#    +\f" ocmd=delcols 'GroupID';delcols 'GroupSize' "
+    f" params={match_par}   join=1and2 find=best2 fixcols=dups suffix1=  suffix2=2016gaia  "+\
+    f" ocmd='delcols 'GroupID';delcols 'GroupSize' '"
 #  f"ocmd='addcol ra2016gaia ra';'addcol dec2016gaia dec' "+\
 #  f"ocmd=delcols 'ra dec raObs decObs obsEp' "
-    print('465 ',command)
+    #print('465 ',command)
     status = os.system(command)
-    if status > 0: print(f"258 Error in {command} ")
+    if status > 0: print(f"574 Error in {command} ")
 
     print ('3 nomatch')
     # nomatch
@@ -533,10 +588,10 @@ def match2gaia_cat(root='.',catin=None,cat_matched=None,cat_nomatch=None,
     f"out={nomatchout} ofmt=fits-basic  matcher=skyerr "+\
     f"values1='RA DEC POSERR'  values2='ra dec ra_error*0.001' "+\
     f" params={match_par}  join=1not2 find=best2 fixcols=dups suffix1=  suffix2=_2  "
-    #f" params='0.45'   join=1not2 find=best2 fixcols=dups suffix1=  suffix2=_2  "
+
     status = os.system(command)
-    print ('478 ',command)
-    if status > 0: print(f"269 Error in {command} ")
+    #print ('583 ',command)
+    if status > 0: print(f"584 Error in {command} ")
 
     print ('4 matchout - add epoch position')
 # edit the extra stuff out
@@ -557,7 +612,7 @@ def match2gaia_cat(root='.',catin=None,cat_matched=None,cat_nomatch=None,
         f'cmd="addcol epxxxx epochProp({toEpoch}-{gaia_epoch},ra,dec,parallax,pmra,pmdec,0.)" '+\
         f'cmd="addcol {ra_ep} pick(epxxxx,0)[0];addcol {de_ep} pick(epxxxx,1)[0]" '+\
         f"cmd='delcols 'epxxxx';addcol {to_ep} {toEpoch}' "
-        print ("494 ",command)
+        print ("605 ",command)
         status = os.system(command)
         if status > 0: print(f"Error in {command} ")
         
@@ -581,9 +636,25 @@ def match2gaia_cat(root='.',catin=None,cat_matched=None,cat_nomatch=None,
         os.system(f"mv {nomatchout2} {nomatchout}")
         print (f"output moved to {nomatchout}\n")
 
-    print ('6 merge into fits file with 2 extensions')
-    # merge matchout and nomatchout 
-    # f"icmd=delcols 'xx xx xx xx' "+\
+    #print ('6 merge into fits file with 2 extensions') obsolete
+    #
+    #  add fits extension names
+    #
+    try:
+        add_extname(f"{matchout}","PMMATCH")
+    except:
+        print (f" match2gaiadr3_ 631 failed to update extname for {toEpoch} PM match ") 
+        pass
+    try:    
+        add_extname(f"{nomatchout}","NOMATCH")
+    except: 
+        print (f" match2gaiadr3_ 631 failed to update extname for {toEpoch} No PM match ") 
+        pass    
+    # merge matchout and nomatchout obsolete
+    #   write separate files for PM matches and non-matches
+    status = os.system(f"mv {matchout} {outputf1}")
+    status = os.system(f"mv {nomatchout} {outputf2}")
+    """ obsolete
     command=f"java -jar {TOPCATPATH}/topcat-full.jar -stilts "+\
     f"tmulti in='{matchout} {nomatchout}' ifmt=fits "+\
     f" out={outputf} ofmt=fits-basic"  
@@ -591,7 +662,14 @@ def match2gaia_cat(root='.',catin=None,cat_matched=None,cat_nomatch=None,
     status = os.system(command)
     if status > 0: print(f"238 Error in {command} ")
     print (f"306 end matching output to {outputf}\n")
+    """
     
+def add_extname(file,extname):
+    from astropy.io import fits
+    with fits.open(file,mode="update") as f:
+       f[1].name=extname
+       f.flush()
+     
     
 def editObscat(rootobs,work,TOPCATPATH):
 # assume the catalogue has two extensions, SRCLIST   and SUMMARY
