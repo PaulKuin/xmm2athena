@@ -406,8 +406,8 @@ def qual_st_merge(qual_st,err=0.02):
        else:
           # convert to ranked and logicals
           ranked_quals = aa =  ranked_qual_st2qual(qual_st) #np.array(aa)
-       #   print (f"{60*'-'}\noriginal {qual_st}\n\ninteger flag values are: {aa}")    
-          #print (f"summed rows: {aa}")
+          #print (f"qual_st_merge409 {60*'-'}\noriginal {qual_st}\n\ninteger flag values are: {aa}")    
+          #print (f"qual_st_merge410 summed rows: {aa}")
           qa = ma.min(aa) == aa
           k = ma.where(qa)[0]
           qualout = qual_st[k][0]

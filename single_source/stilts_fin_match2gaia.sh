@@ -1,6 +1,6 @@
 #!/bin/csh 
 #
-echo "finalise.match2Gaia: "
+echo "finalise.match2Gaia.sh: rematch all"
 set IN1 = matchout_all.fits  
 set IN2 = nomatch_all.fits
 set OUT = sussxgaiadr3_ep2000.fits
