@@ -62,14 +62,14 @@ colsofinterest = ["IAUNAME","obs_epoch","OBSIDS","EPOCHS",'UVW2_ABMAG','UVM2_ABM
 iauname="IAUNAME" 
 bands=['UVW2','UVM2','UVW1','U','B','V']  # I think White is absent
 #catalog = 'UVOTSSC2'
-catalog = 'testsuss' #'SUSS'
+catalog = "SUSS" #'testsuss' #'SUSS'
 outtable = None
 
 if catalog == 'SUSS':
-    rootobs = '/Users/data/catalogs/suss_gaia_epic/'
-    chunk = 'XMM-OM-SUSS5.0.fits'
-    sussdir= '/Users/data/catalogs/suss_gaia_epic/'
-    suss='XMM-OM-SUSS5.0.fits'
+    rootobs = '/Volumes/DATA11/data/catalogs/test_2/'
+    chunk = "sussxgaiadr3_ep2000.fits"   
+    sussdir= '/Volumes/DATA11/data/catalogs/suss6./'
+    suss='XMM-OM-SUSS6.2.fits'
     summary_file = "suss_summary.fits"
 elif catalog == 'UVOTSSC2':
     rootobs = '/Users/data/catalogs/uvotssc2/'
@@ -639,16 +639,20 @@ def mainsub(chunk):
                 new_row[band+'_ABMAG_MIN'] = min_mag
             #new_row[band+'_VAR3'] = var3   # variability on 3-sigma 
             if nrow >1:
-              if (qual_out == 0) and (len(qf) > 1):  # there is a good detection amongst list
-                qchi = qf2[qf2_q] == 0  # index data with qual==0
-                nq0 = len(qchi)
-                nObs, med_mag, chisq, sigma_mag, skew, var3 = stats(magx[qchi],err=errx[qchi],syserr=0.005)   
-                if nq0>1: 
-                   new_row[band+'_CHI2RED'] = chisq /(nq0-1)  # this should only be based on the qual==0 data points
+                if (qual_out == 0) and (len(qf) > 1):  # there is a good detection amongst list
+                    qchi = qf2[qf2_q] == 0  # index data with qual==0
+                    nq0 = len(qchi)
+                    if np.isnan(magx).all():
+                       chisq = np.nan
+                       skew  = np.nan
+                    else:
+                       nObs, med_mag, chisq, sigma_mag, skew, var3 = stats(magx[qchi],err=errx[qchi],syserr=0.005)   
+                    if nq0>1: 
+                        new_row[band+'_CHI2RED'] = chisq /(nq0-1)  # this should only be based on the qual==0 data points
                    
-              new_row[band+'_CHISQ'] = chisq   # this is based on any quality 
-              new_row[band+'_SKEW'] = skew
-              new_row[band+'_NOBS'] = nObs
+                new_row[band+'_CHISQ'] = chisq   # this is based on any quality 
+                new_row[band+'_SKEW'] = skew
+                new_row[band+'_NOBS'] = nObs
             if (catalog == 'SUSS') | (catalog == "testsuss"):
                 new_row[band+'_EXTENDED_FLAG'] = base[band]  
             elif (catalog == 'UVOTSSC2') | (catalog == "test"):
