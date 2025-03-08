@@ -12,7 +12,9 @@
 #
 #  This version (V2) computes the chiSquared values for variability.
 #  stage 2, June 19, 2023, npmk
-
+# March 2025, npmk
+# added cluster analysis for high PM sources in order to identify which sources have 
+# same PM within a limit, and are in the same area on the sky.
 
 import os
 import numpy as np
@@ -38,17 +40,18 @@ colsofinterest = ["IAUNAME","SRCNUM","obs_epoch","OBSIDS","EPOCHS",'UVW2_ABMAG',
 iauname="IAUNAME" 
 bands=['UVW2','UVM2','UVW1','U','B','V']  # I think White is absent
 
-catalog = 'testsuss' # 'SUSS' 'UVOTSSC2'
+catalog = "SUSS" #'testsuss' # 'SUSS' 'UVOTSSC2'
 outtable = None
 matched2gaia = "sussxgaiadr3_ep2000.fits"
 
 
 if catalog == 'SUSS':
-    rootobs = '/Users/data/catalogs/suss_gaia_epic/'
-    chunk = "XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux.fits"
-    pm_colname = pm_cds = "pm_cds" 
-    Rplx_colname = Rplx = "RPlx"
-     #"XMM-OM-SUSS5.0_singlerecs_v2xhighpm_probabGThalf.fits"   #"This_is_output_of: single_source_cat_v2"  2023-06-16
+    rootobs = '/Volumes/DATA11/data/catalogs/test_2/'
+    chunk = "sussxgaiadr3_ep2000_singlerecs.fits" 
+    pm_cds = "PM_cds"  # proper motion 
+    Rplx = "RPlx"  # Parallax over Error
+    onedone = True # if the sources without large pm have been written already
+    hipm_chunk = "sussxgaiadr3_ep2000_singlerecs_hipm.fits"
 elif catalog == 'UVOTSSC2':
     rootobs = '/Users/kuin/pymodules/cats/' # /Users/data/catalogs/uvotssc2/' 
     chunk =  "TBD x gaia" # 'cat_out_all_pm.fits' 
@@ -238,7 +241,7 @@ def stats(array, err=[None], syserr=0.005, nobs=None, chi2=None, sd=None, skew=N
     return n, median, ncChisq, sd, sk, V3   
       
 
-def fileio(infile,outstub="_stage2",outdir=""):
+def fileio(infile,outstub="_stg2",outdir=""):
     #
     # use the input file name infile to construct the output filename
     # open the output file
@@ -282,12 +285,47 @@ def fileio(infile,outstub="_stage2",outdir=""):
     except:
         print ("279 problem reading table -- colnames are \n {t.colnames}")    
         exit            
-    outfile=instub+outstub+".csv"
-    outf = open(outdir+outfile,'w')  # file handle
-    outfile2=instub+outstub+"_catch.csv"
-    outf2 = open(outdir+outfile2,'w')  # file handle weird ones with same PM but different parallax_over_error
+
+    outfile=instub+outstub+"a.csv"
+    if not onedone: 
+       outf = open(outdir+outfile,'w')  # file handle for all records that do not need another merge
+    outf = "outf"   
+    outfile2=instub+outstub+"b.csv"
+    outf2 = open(outdir+outfile2,'w')  # for new merges 
+    outerr = open(outdir+instub+"_err.csv",'w')  #was:file handle weird ones with same PM but different parallax_over_error
     # 
-    # we use the astropy to flag data that have the same IAUNAME
+                            """
+                            # now make second check whether parallax_over_error and pm are same (incl roundoff error)
+                            plxoe = tab_ma[Rplx]
+                            for pk in range(1,len(plxoe)):
+                                if np.abs(plxoe[0] - plxoe[pk]) > 0.001*np.abs(plxoe[0]):
+                                   print (f"{k9} plx/error not consistent: writing to {outerr} tab_src[pk]")
+                                   #for pk2 in range(len(plxoe)): # mask too far away
+                                   #     print (f"stopped {k9} call create_csv_ 578 nrow>1, for {pk2} in {len(plxoe)}, \n")
+                                        #create_csv_output_record(tab_src[pk2],outerr,col,nc)           
+                                        #check = False
+    from 537  tab_src = Table(tab_src)
+            # check if the distance between entries is reasonable
+            ra1 = tab_src['ra2000Ep']
+            de1 = tab_src['dec2000Ep']
+            dist = np.sqrt( (ra1-ra1[0])**2 + (de1-de1[0])**2 ) * 60.
+            qset = dist < 667.* tab_src[pm_cds] # distance from first row is within 20 arcminutes or, 40yrs*pm*1000/60 
+            distant_set = dist >= 667.* tab_src[pm_cds] 
+            if sum(qset) < nrow:   
+                tab_src = tab_src[qset]
+                tab_ma = ma.asarray(tab_src)
+                nrow = tab_ma.size
+                print(f"536 WARNING removed candidate(s) which were more than 20 arcmin distant")
+                disttab =Table(tab_src[distant_set] )
+                print (f"\nWARNING:  Sources distant from first {firstname} with same PM \n{disttab}\n\n")
+                            """          
+    # we now need to group the sources according to close position and PM
+    #
+    # distance: best is distance < 700xPM arcminutes
+    # delta PM < 1e-2 
+    # 
+    # method: index of group after sort by PM, then sort by position, then check membership 
+    #
     # after that we can call up the record/row selection by that.
     #
     tx.add_index(pm_cds)
@@ -299,7 +337,7 @@ def fileio(infile,outstub="_stage2",outdir=""):
         del f[1].data
         del f[2].data
     except: pass
-    return tx, outf, sources, ty, outf2
+    return tx, outf, sources, ty, outf2, outerr
 
    
 
@@ -349,8 +387,8 @@ def create_csv_output_record(trow,outf,col,nc):
     # input is a table object for one source after the magnitudes have been 
     # combined, and the extended nature has been evaluated
     #
+    print     ( f"in create_csv_output 357 : type:{type(trow)} ... values ...\n{trow},\n---" )
     for k in range(nc-1): 
-       #print     ( f"{trow[col[k]]}," )
        outf.write( f"{trow[col[k]]}," )
     outf.write( f"{trow[col[nc-1]]}\n" )
 
@@ -444,13 +482,162 @@ def ranked_qual_st2qual(qual_st):
            aa.append(None)      # was -9999 instead of None
     return ma.masked_values(aa,None) # ditto
  
+########## clustering 
+
+
+def cluster_sources(ra, dec, pm_ra, pm_dec, id, pm_tolerance=0.001, pm_distance_factor=0.01, output_stuff=True):
+    """
+    Cluster sources by similar proper motion and positional proximity with dynamic distance threshold.
+    Includes source IDs in the output.
+    
+    Parameters:
+    ra, dec: arrays of right ascension and declination in degrees
+    pm_ra, pm_dec: arrays of proper motion in RA and Dec directions (e.g., mas/yr)
+    id: array of unique identifiers for each source (e.g., strings or integers)
+    pm_tolerance: tolerance for matching proper motions (e.g., mas/yr)
+    pm_distance_factor: factor to compute max separation (arcmin) as pm_distance_factor * PM
+    output_stuff: optional 
+    
+    Returns:
+    List of clusters, where each cluster is a dictionary with 'ids' (list of source IDs) and 'indices' (list of source indices)
+    """
+    from astropy.coordinates import SkyCoord
+    from astropy import units as u
+    from sklearn.cluster import DBSCAN
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.neighbors import BallTree
+    import time
+ 
+    start_time = time.time()
+    n_sources = len(ra)
+    if len(id) != n_sources:
+        raise ValueError("Length of id array must match length of ra, dec, pm_ra, pm_dec")
+    print(f"Processing {n_sources} sources...")
+
+    # Step 1: Compute total proper motion for each source
+    pm_total = np.sqrt(pm_ra**2 + pm_dec**2)  # Total PM in mas/yr
+
+    # Step 2: Cluster by proper motion using DBSCAN
+    pm_features = np.vstack((pm_ra, pm_dec)).T  # Shape: (n_sources, 2)
+    pm_features_scaled = StandardScaler().fit_transform(pm_features)
+    
+    # Tune eps based on pm_tolerance
+    pm_eps = pm_tolerance / np.std(pm_features_scaled[:, 0])  # Approximate scaling
+    pm_dbscan = DBSCAN(eps=pm_eps, min_samples=2).fit(pm_features_scaled)
+    pm_labels = pm_dbscan.labels_
+    
+    pm_cluster_count = len(set(pm_labels)) - (1 if -1 in pm_labels else 0)
+    noise_count = np.sum(pm_labels == -1)
+    print(f"Proper motion clustering done in {time.time() - start_time:.2f} seconds")
+    print(f"Found {pm_cluster_count} PM clusters, {noise_count} sources labeled as noise")
+
+    # Step 3: For each PM cluster, cluster by position with dynamic threshold
+    clusters = []
+    unique_pm_labels = set(pm_labels) - {-1}  # Ignore noise (-1 label)
+    
+    for pm_label in unique_pm_labels:
+        pm_cluster_indices = np.where(pm_labels == pm_label)[0]
+        pm_cluster_size = len(pm_cluster_indices)
+        if pm_cluster_size < 2:
+            continue
+        
+        # Compute representative PM for this cluster (median for robustness)
+        cluster_pm = np.median(pm_total[pm_cluster_indices])
+        max_separation = pm_distance_factor * cluster_pm  # Arcminutes
+        max_separation_rad = (max_separation / 60.0) * (np.pi / 180.0)  # Convert to radians for BallTree
+        
+        print(f"PM Cluster {pm_label}: {pm_cluster_size} sources, Median PM: {cluster_pm:.4f} mas/yr, "
+              f"Max separation: {max_separation:.2f} arcmin")
+        
+        # Get positions and IDs for this PM cluster
+        pm_cluster_ra = ra[pm_cluster_indices]
+        pm_cluster_dec = dec[pm_cluster_indices]
+        pm_cluster_ids = id[pm_cluster_indices]
+        
+        # Convert positions to SkyCoord for accurate distance calculations
+        coords = SkyCoord(ra=pm_cluster_ra*u.deg, dec=pm_cluster_dec*u.deg, frame='icrs')
+        
+        # Convert positions to radians for BallTree
+        ra_rad = coords.ra.to(u.radian).value
+        dec_rad = coords.dec.to(u.radian).value
+        pos_features = np.vstack((ra_rad, dec_rad)).T
+        
+        # Build BallTree for efficient neighbor search
+        tree = BallTree(pos_features, metric='haversine')
+        
+       # Find neighbors within the dynamic max_separation
+        neighbors = tree.query_radius(pos_features, r=max_separation_rad)
+        
+        # Build clusters from neighbors (connected components)
+        parent = list(range(pm_cluster_size))
+        
+        def find(x):
+            if parent[x] != x:
+                parent[x] = find(parent[x])
+            return parent[x]
+        
+        def union(x, y):
+            parent[find(x)] = find(y)
+        
+        # Union all pairs of neighbors
+        for i in range(len(neighbors)):
+            for j in neighbors[i]:
+                if i != j:
+                    union(i, j)
+        
+        # Group by connected components
+        cluster_dict = {}
+        for i in range(pm_cluster_size):
+            root = find(i)
+            if root not in cluster_dict:
+                cluster_dict[root] = {'ids': [], 'indices': []}
+            cluster_dict[root]['ids'].append(pm_cluster_ids[i].item() if isinstance(pm_cluster_ids[i], np.ndarray) else pm_cluster_ids[i])
+            cluster_dict[root]['indices'].append(pm_cluster_indices[i])
+        
+        # Add clusters with 2 or more sources to the final list
+        for root, cluster in cluster_dict.items():
+            if len(cluster['ids']) >= 2 :
+                clusters.append(cluster)
+                print(f"  Positional cluster: {len(cluster['ids'])} sources, IDs: {cluster['ids'][:5]}...")
+
+    print(f"Total clustering done in {time.time() - start_time:.2f} seconds")
+    print(f"Found {len(clusters)} final clusters")
+
+    # Optionally save clusters to a file
+    if output_stuff:
+        cluster_data = {
+            "n_sources": n_sources,
+            "pm_tolerance": pm_tolerance,
+            "pm_distance_factor": pm_distance_factor,
+            "clusters": [
+                {
+                    "ids": cluster['ids'],
+                    "indices": cluster['indices'],
+                    "size": len(cluster['ids']),
+                    "median_pm": float(np.median(pm_total[cluster['indices']])),
+                    "max_separation": float(pm_distance_factor * np.median(pm_total[cluster['indices']]))
+                }
+                for cluster in clusters
+            ]
+        }
+
+    return clusters, cluster_data
+
+ 
+ 
 
 ########## main ()  
 
 
 def mainsub2(chunk):
     # get list of unique sources, output file handle, table, summary
-    tx, outf, sources, ty, outf2 = fileio(rootobs+chunk)
+    if onedone:   # limiting processing to just the hipm data (saves lots of time!)
+       chunk = hipm_chunk
+    tx, outf, sources, ty, outf2, outerr = fileio(rootobs+chunk)
+    
+    low_pm_nrows = len(ty)
+    high_pm_rows = len(tx)
+    
     # edit the columns 
     t = make_new(tx) # remove and add columns to the Table
     #print(t[:20],"\n")
@@ -459,75 +646,92 @@ def mainsub2(chunk):
     col = t.colnames
     nc = len(col)
     for k in range(nc-1): 
-        outf.write( f"{col[k]}," )
-    outf.write(f"{col[nc-1]}\n")  
+        if not onedone: outf.write( f"{col[k]}," )
+        outf2.write( f"{col[k]}," )
+    if not onedone: outf.write(f"{col[nc-1]}\n")  
+    outf2.write(f"{col[nc-1]}\n")  
     
 
     #print("evaluating ",col," sources\n")
-    k9 = 0    # counter records
+    if not onedone:
+        k9 = 0    # counter records
 
-    # first with the sources with low PM
-    for trow in ty:
-        create_csv_output_record(trow,outf,col,nc)
+        # first with the sources with low PM
+        for trow in ty:
+            print ("call create_csv_  484")
+            create_csv_output_record(trow,outf,col,nc)
+            k9 += 1
+        outf.close()
+        print (f"wrote {k9} records in {outf} for the low-pm sources ...")
+    
+    k9 = 0
+# now process the high pm rows
+
+    print (f"processing {high_pm_rows} of high PM records\n")
+    print (f"now check for sources with multiple records with same PM (which have likely moved) ")
+    #
+    # do a clustering analysis to identify those sources that cluster in PM and Ep 2000 coordinates
+    #
+    ra = tx['ra2000Ep']
+    dec = tx['dec2000Ep']
+    pm_ra = tx['pmRA_cds']
+    pm_dec = tx['pmDE']
+    id = tx['IAUNAME']
+    clusters, cluster_data = cluster_sources(ra, dec, pm_ra, pm_dec, id, pm_tolerance=0.001, pm_distance_factor=0.01)
+
+    # these records (IAUNAME/ids) are clusters 
+    srcids = []
+    for cl in cluster_data['clusters']:
+        for id1 in cl['ids']:
+            srcids.append(id1)
+    print (f"of the {len(id)} high PM records, {len(srcids)} have multiple observation IAUNAME IDs\n")
+    
+    t = Table(cat[1].data)    
+    notinit = []
+    for src3 in t['IAUNAME']:
+        if not src3 in srcids:
+           notinit.append(src)
+    print (f"and {len(notinit)} are single sources")       
+
+    # write the hi PM records that do not cluster
+    for name in notinit:
+        trow = tx[where(tx['IAUNAME'] == name)]
+        create_csv_output_record(trow,outf2,col,nc)
         k9 += 1
+    print (f"wrote so far {k9} records in {outf2} for the single sources ... ")
+    #       
+    # process the clusters    
+    #
 
-    for src in sources[:]:   
-        print (f"now check for sources with multiple records with same PM (which have likely moved) ")
-        if int(k9/100)*100 == k9:
-            print (f"> merging src number={k9}, source={src} ");     
-        k9+=1
-        if src == np.nan:
-        #    for trow in ty:
-        #        create_csv_output_record(trow,outf,col,nc)
-            outf.close()
-            outf2.close()
-            stop
-        try:
-           tab_src = t.loc[src]
-           print (f"478 {k9}\n{tab_src['IAUNAME']} ")
-        except:
-            #for trow in ty:
-            #    create_csv_output_record(trow,outf,col,nc)
-            print (f"491 problem locating {src} in t")
-            outf.close()
-            outf2.close()
-            stop
-           
+    for cluster in clusters:   
+        
+        # find the cluster members
+        indices = cluster['indices']
+        #names   = cluster['ids']
+        sources = tx['IAUNAME'][indices]
+        tab_src = tx.loc[indices]        
+        k9+=1                       
         tab_ma = ma.asarray(tab_src)
         nrow = tab_ma.size
-                
-            
-        # now check if there are double entries and remove those based on obs_epoch and iauname (src)
-        if nrow > 1:
-            tab_src = Table(tab_src)
-        # check if the distance between entries is reasonable
-            ra1 = tab_src['ra2000Ep']
-            de1 = tab_src['dec2000Ep']
-            dist = np.sqrt( (ra1[1:]-ra1[0])**2 + (de1[1:]-de1[0])**2 ) * 60.
-            qset = dist < 20 # distance from first row is within 20 arcminutes
-            qset.insert(0,True)
-            if sum(qset) < nrow:
-               tab_src = tab_src[qset]
-               tab_ma = ma.asarray(tab_src)
-               nrow = tab_ma.size
-            ##print (f"473 nrow={nrow}, {tab_ma.size},  tab_src={tab_src} ;--> {type(tab_src)} ; tab_ma={tab_ma}")   
-            #oep = tab_src[0]['obs_epoch']
-            idup = [0]
                 
         if type(tab_src) != astropy.table.row.Row: # is Table object ?
             new_row = tab_src[0] # on new row per iauname  
         else: 
             new_row = tab_src  # is Table Row
             
-        if nrow < 2:    
-                create_csv_output_record(tab_src,outf,col,nc) 
-                continue 
+        # how to deal with now merging records with multiple IAUNAME: take the first one    
+        firstname = new_row['IAUNAME']    
             
-        base = evaluate_extended_nature(tab_src)
-        if nrow == 1:
-            print (f"528 nrow == 1 - should not have gotten here")
-            pass
-        else:
+        # now check if there are double entries and remove those based on obs_epoch and iauname (src)
+        if nrow > 1:
+            tab_src = Table(tab_src)
+            idup = [0]
+                            
+        if nrow == 1:  # meaning no matches within 20' distance 
+                raise RuntimeError ("call create_csv_  539 nrow==1  should not occur!!")
+                
+        else:    
+            base = evaluate_extended_nature(tab_src)
             obsidlist = tab_src['OBSIDS'][0]
             epochlist = str(tab_src['EPOCHS'][0])
             srcnumlist = str(tab_src['SRCNUMS'][0])
@@ -537,74 +741,62 @@ def mainsub2(chunk):
                 srcnumlist+= "_"+str(tab_src['SRCNUMS'][ix])
             new_row['OBSIDS'] = obsidlist
             new_row['EPOCHS'] = epochlist
-            new_row['SRCNUMS']= srcnumlist
-                
+            new_row['SRCNUMS']= srcnumlist                
         #
-        print (f"=== === === === === \n491 tab.ma.size={nrow}\n new_row is\n{new_row};\ntype is {type(new_row)}\n === === === === === 491\n")
-        print (f"OBSIDS, EPOCHS:\n{new_row['OBSIDS']}\n{new_row['EPOCHS']}")    
-                
-        for band in bands:   # loop over all filters 
-            qf = tab_ma[band+"_QUALITY_FLAG_ST"]
-            print (f"523 checking {band}: quality_flag_st qf = {qf}\n qf.data={qf.data}523\n")
-            qfaa = qf.data
-            qf_q = qfaa != ''
-            if nrow > 1:
-                # QUALITY   
-                if (catalog == 'SUSS') | (catalog == "testsuss"):
-                    qf = qf[qf_q]
-                    if len(qf) > 1:
-                        print (f"529 qf={qf}  err=\n{tab_src[band+'_AB_MAG_ERR']}")
-                        # now make second check whether parallax_over_error and pm are same
-                        plxoe = tab_ma[Rplx]   
-                        for pk in range(1,len(plxoe)):
-                           if plxoe[0] != plxoe[pk]:
-                              print (f"plx/error not consistent: writing to outf2 tab_src[pk]")
-                              for pk2 in range(len(plxoe)): 
-                                  create_csv_output_record(tab_src[pk2],outf2,col,nc)
-                              continue
-                              continue
-                              continue
-                              continue
-                              continue
-                              continue
-
-                        qual_st_out,ranked_quals = qual_st_merge(qf,err=tab_src[band+"_AB_MAG_ERR"])
-                        qual_out = qual_stflag2decimal(qual_st_out)
-                    elif len(qf) == 1:
-                        qual_st_out, ranked_quals, qual_out = qf[0],qf[0],qual_stflag2decimal(qf[0])
-                    else:
-                        qual_st_out,ranked_quals, qual_out = "", "", -2147483648
+            print (f"=== === === === === \n491 tab.ma.size={nrow}\n new_row is\n{new_row};\ntype is {type(new_row)}\n === === === === === 491\n")
+            print (f"OBSIDS, EPOCHS:\n{new_row['OBSIDS']}\n{new_row['EPOCHS']}")    
+              
+            check = True    
+            for band in bands:   # loop over all filters - merge into one 
+                qf = tab_ma[band+"_QUALITY_FLAG_ST"]
+                print (f"523 checking {band}: quality_flag_st qf = {qf}\n qf.data={qf.data}523\n")
+                qfaa = qf.data
+                qf_q = qfaa != ''
+                if nrow > 1:
+                    # QUALITY   
+                    if (catalog == 'SUSS') | (catalog == "testsuss"):
+                        qf = qf[qf_q]
+                        if len(qf) > 1:
+                            print (f"529 qf={qf}  err=\n{tab_src[band+'_AB_MAG_ERR']}")
+                            if check:
+                                qual_st_out,ranked_quals = qual_st_merge(qf,err=tab_src[band+"_AB_MAG_ERR"])
+                                qual_out = qual_stflag2decimal(qual_st_out)
+                        elif len(qf) == 1:
+                                qual_st_out, ranked_quals, qual_out = qf[0],qf[0],qual_stflag2decimal(qf[0])
+                        else:
+                                qual_st_out,ranked_quals, qual_out = "", "", -2147483648
                  
-                elif (catalog == 'UVOTSSC2') | (catalog == "test"):
-                    qual_st_out,ranked_quals = qual_st_merge(qf,err=tab_src[band+"_ABMAG_ERR"])
-                    qual_out = qual_stflag2decimal(qual_st_out)
-                    ix = qual_st_out == -999
-                    #print (f"x: {type(ix)}  {ix}")
-                    if ix:
-                       print (f" qual {qual_out}, st:{qual_st_out}\n")
-                       qual_st_out = "" 
-                       qual_out = np.nan
-                #if len(qual_st_out) != 12:
-                #    raise RuntimeError(f"448 ERROR: {k9} the quality flag is wrong {qual_st_out}")
-                new_row[band+'_QUALITY_FLAG_ST'] = qual_st_out
-                new_row[band+'_QUALITY_FLAG'] = qual_out
-                # SIGNIFICANCE  - pick best value - not sure if in SUSS
-                if (catalog == 'UVOTSSC2') | (catalog == 'test'):
-                    signif = tab_src[band+"_SIGNIF"]
-                    signif = signif.data
-                    qsignif = signif[np.isfinite(signif)]
-                    if len(qsignif) == 1: 
-                        new_row[band+"_SIGNIF"]= qsignif
-                    elif len(qsignif) > 1:     
-                        new_row[band+"_SIGNIF"]= np.max(qsignif)
-                    else: 
-                        new_row[band+"_SIGNIF"]= signif[0]  
+                    elif (catalog == 'UVOTSSC2') | (catalog == "test"):
+                        qual_st_out,ranked_quals = qual_st_merge(qf,err=tab_src[band+"_ABMAG_ERR"])
+                        qual_out = qual_stflag2decimal(qual_st_out)
+                        ix = qual_st_out == -999
+                        #print (f"x: {type(ix)}  {ix}")
+                        if ix:
+                            print (f" qual {qual_out}, st:{qual_st_out}\n")
+                            qual_st_out = "" 
+                            qual_out = np.nan
+                    #if len(qual_st_out) != 12:
+                    #    raise RuntimeError(f"448 ERROR: {k9} the quality flag is wrong {qual_st_out}")
+                    new_row[band+'_QUALITY_FLAG_ST'] = qual_st_out
+                    new_row[band+'_QUALITY_FLAG'] = qual_out
+                    # SIGNIFICANCE  - pick best value - not sure if in SUSS
+                    if check & (catalog == 'UVOTSSC2') | (catalog == 'test'):
+                        signif = tab_src[band+"_SIGNIF"]
+                        signif = signif.data
+                        qsignif = signif[np.isfinite(signif)]
+                        if len(qsignif) == 1: 
+                            new_row[band+"_SIGNIF"]= qsignif
+                        elif len(qsignif) > 1:     
+                            new_row[band+"_SIGNIF"]= np.max(qsignif)
+                        else: 
+                            new_row[band+"_SIGNIF"]= signif[0]  
+                            
           # the other case, one row input, is taken case of by the version 1 
           #  med_mag, max_mag, sigma_mag, varFlag_mag, mean_mag = \
           #     combine_a_set_of_(tab_src[band+"_AB_MAG"],
           #        tab_src[band+"_AB_MAG_ERR"],N=5,
           #        qual=new_row[band+"_QUALITY_FLAG"])
-            if (catalog == 'SUSS') | (catalog == "testsuss"):
+            if check & (catalog == 'SUSS') | (catalog == "testsuss"):
                 magx = tab_src[band+"_AB_MAG"]
                 errx = tab_src[band+"_AB_MAG_ERR"]
                 #print (f"magx={magx}, errx={errx}")
@@ -618,6 +810,7 @@ def mainsub2(chunk):
                 new_row[band+'_AB_MAG'] = med_mag
                 new_row[band+'_AB_MAG_ERR'] = sigma_mag
                 new_row[band+'_AB_MAG_MIN'] = min_mag
+
             elif (catalog == 'UVOTSSC2') | (catalog == "test"):    
                 magx = tab_src[band+"_ABMAG"]
                 errx = tab_src[band+"_ABMAG_ERR"]
@@ -627,22 +820,23 @@ def mainsub2(chunk):
                 new_row[band+'_ABMAG_ERR'] = sigma_mag
                 new_row[band+'_ABMAG_MIN'] = min_mag
                 new_row[band+'_VAR3'] = var3   # variability on 3-sigma 
-            new_row[band+'_CHISQ'] = chisq
-            new_row[band+'_SKEW'] = skew
-            new_row[band+'_NOBS'] = nObs
-            if (catalog == 'SUSS') | (catalog == "testsuss"):
+
+            if (check & (catalog == 'SUSS') | (catalog == "testsuss"))| ( (catalog == 'UVOTSSC2') | (catalog == "test")):
+                new_row[band+'_CHISQ'] = chisq
+                new_row[band+'_SKEW'] = skew
+                new_row[band+'_NOBS'] = nObs
+
+            if check & (catalog == 'SUSS') | (catalog == "testsuss"):
                 new_row[band+'_EXTENDED_FLAG'] = base[band]  
             elif (catalog == 'UVOTSSC2') | (catalog == "test"):
                 new_row[band+'_EXTENDED'] = base[band]  
-            # edit masks:    
-            
-        # perhaps change mask value here for some cols
-        create_csv_output_record(new_row,outf,col,nc)  
-    # write records without PM 
-    #for trow in ty:
-    #    create_csv_output_record(trow,outf,col,nc)
+
+        print ("call create_csv_  834 ")
+        create_csv_output_record(new_row,outf2,col,nc)  
+
     outf.close()
     outf2.close()
+    outerr.close()
 
 
 
