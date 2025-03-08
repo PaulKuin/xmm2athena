@@ -43,6 +43,7 @@ bands=['UVW2','UVM2','UVW1','U','B','V']  # I think White is absent
 catalog = "SUSS" #'testsuss' # 'SUSS' 'UVOTSSC2'
 outtable = None
 matched2gaia = "sussxgaiadr3_ep2000.fits"
+Rpm_limit = 10 # if PM/error < Rpm_limit the record will not be merged
 
 
 if catalog == 'SUSS':
@@ -186,6 +187,7 @@ def stats(array, err=[None], syserr=0.005, nobs=None, chi2=None, sd=None, skew=N
          (check if there is a paper by Curtis Saxton on this also).
 
     @npmkuin, 2023, Copyright 2023, license 3-clause BSD style (see github.com/PaulKuin)
+    note the input array, err can have null elements
     
     """
     import numpy as np
@@ -195,7 +197,7 @@ def stats(array, err=[None], syserr=0.005, nobs=None, chi2=None, sd=None, skew=N
     # first remove nan values and if no elements left, return, otherwise continue
     #n1 = len(array) input can be a float
     a = np.asarray(array)
-    q = np.isnan(a) 
+    q = np.isnan(a)   # to screen out missing values 
     a = a[q == False]
     na = len(a)
     if len(a) < 1: 
@@ -294,41 +296,16 @@ def fileio(infile,outstub="_stg2",outdir=""):
     outf2 = open(outdir+outfile2,'w')  # for new merges 
     outerr = open(outdir+instub+"_err.csv",'w')  #was:file handle weird ones with same PM but different parallax_over_error
     # 
-                            """
-                            # now make second check whether parallax_over_error and pm are same (incl roundoff error)
-                            plxoe = tab_ma[Rplx]
-                            for pk in range(1,len(plxoe)):
-                                if np.abs(plxoe[0] - plxoe[pk]) > 0.001*np.abs(plxoe[0]):
-                                   print (f"{k9} plx/error not consistent: writing to {outerr} tab_src[pk]")
-                                   #for pk2 in range(len(plxoe)): # mask too far away
-                                   #     print (f"stopped {k9} call create_csv_ 578 nrow>1, for {pk2} in {len(plxoe)}, \n")
-                                        #create_csv_output_record(tab_src[pk2],outerr,col,nc)           
-                                        #check = False
-    from 537  tab_src = Table(tab_src)
-            # check if the distance between entries is reasonable
-            ra1 = tab_src['ra2000Ep']
-            de1 = tab_src['dec2000Ep']
-            dist = np.sqrt( (ra1-ra1[0])**2 + (de1-de1[0])**2 ) * 60.
-            qset = dist < 667.* tab_src[pm_cds] # distance from first row is within 20 arcminutes or, 40yrs*pm*1000/60 
-            distant_set = dist >= 667.* tab_src[pm_cds] 
-            if sum(qset) < nrow:   
-                tab_src = tab_src[qset]
-                tab_ma = ma.asarray(tab_src)
-                nrow = tab_ma.size
-                print(f"536 WARNING removed candidate(s) which were more than 20 arcmin distant")
-                disttab =Table(tab_src[distant_set] )
-                print (f"\nWARNING:  Sources distant from first {firstname} with same PM \n{disttab}\n\n")
-                            """          
     # we now need to group the sources according to close position and PM
     #
-    # distance: best is distance < 700xPM arcminutes
+    # distance: best is distance < 0.001xPM arcminutes
     # delta PM < 1e-2 
     # 
     # method: index of group after sort by PM, then sort by position, then check membership 
     #
     # after that we can call up the record/row selection by that.
     #
-    tx.add_index(pm_cds)
+    #tx.add_index(pm_cds)
     sources = tx[pm_cds]
     sources = np.unique(sources)
     
@@ -387,7 +364,7 @@ def create_csv_output_record(trow,outf,col,nc):
     # input is a table object for one source after the magnitudes have been 
     # combined, and the extended nature has been evaluated
     #
-    print     ( f"in create_csv_output 357 : type:{type(trow)} ... values ...\n{trow},\n---" )
+    #print     ( f"in create_csv_output 357 : type:{type(trow)} ... values ...\n{trow},\n---" )
     for k in range(nc-1): 
        outf.write( f"{trow[col[k]]}," )
     outf.write( f"{trow[col[nc-1]]}\n" )
@@ -410,7 +387,7 @@ def qual_st_merge(qual_st,err=0.02):
     f_carry = [6,8] # original flags, i.e., [1,3] in ordered flags
     
     qualout = ""
-    
+    qual_st = np.asarray(qual_st)
     if qual_st.size == 1:  # nothing to decide
         return qual_st,  ranked_qual_st2qual(qual_st)
     else: 
@@ -485,7 +462,7 @@ def ranked_qual_st2qual(qual_st):
 ########## clustering 
 
 
-def cluster_sources(ra, dec, pm_ra, pm_dec, id, pm_tolerance=0.001, pm_distance_factor=0.01, output_stuff=True):
+def cluster_sources(ra, dec, pm_ra, pm_dec, id, pm_tolerance=0.001, pm_distance_factor=0.01, output_stuff=True,chatter=0):
     """
     Cluster sources by similar proper motion and positional proximity with dynamic distance threshold.
     Includes source IDs in the output.
@@ -512,7 +489,7 @@ def cluster_sources(ra, dec, pm_ra, pm_dec, id, pm_tolerance=0.001, pm_distance_
     n_sources = len(ra)
     if len(id) != n_sources:
         raise ValueError("Length of id array must match length of ra, dec, pm_ra, pm_dec")
-    print(f"Processing {n_sources} sources...")
+    if chatter > 2: print(f"Processing {n_sources} sources...")
 
     # Step 1: Compute total proper motion for each source
     pm_total = np.sqrt(pm_ra**2 + pm_dec**2)  # Total PM in mas/yr
@@ -528,8 +505,8 @@ def cluster_sources(ra, dec, pm_ra, pm_dec, id, pm_tolerance=0.001, pm_distance_
     
     pm_cluster_count = len(set(pm_labels)) - (1 if -1 in pm_labels else 0)
     noise_count = np.sum(pm_labels == -1)
-    print(f"Proper motion clustering done in {time.time() - start_time:.2f} seconds")
-    print(f"Found {pm_cluster_count} PM clusters, {noise_count} sources labeled as noise")
+    if chatter > 2: print(f"Proper motion clustering done in {time.time() - start_time:.2f} seconds")
+    if chatter > 2: print(f"Found {pm_cluster_count} PM clusters, {noise_count} sources labeled as noise")
 
     # Step 3: For each PM cluster, cluster by position with dynamic threshold
     clusters = []
@@ -546,7 +523,8 @@ def cluster_sources(ra, dec, pm_ra, pm_dec, id, pm_tolerance=0.001, pm_distance_
         max_separation = pm_distance_factor * cluster_pm  # Arcminutes
         max_separation_rad = (max_separation / 60.0) * (np.pi / 180.0)  # Convert to radians for BallTree
         
-        print(f"PM Cluster {pm_label}: {pm_cluster_size} sources, Median PM: {cluster_pm:.4f} mas/yr, "
+        if chatter > 2: 
+            print(f"PM Cluster {pm_label}: {pm_cluster_size} sources, Median PM: {cluster_pm:.4f} mas/yr, "
               f"Max separation: {max_separation:.2f} arcmin")
         
         # Get positions and IDs for this PM cluster
@@ -598,10 +576,10 @@ def cluster_sources(ra, dec, pm_ra, pm_dec, id, pm_tolerance=0.001, pm_distance_
         for root, cluster in cluster_dict.items():
             if len(cluster['ids']) >= 2 :
                 clusters.append(cluster)
-                print(f"  Positional cluster: {len(cluster['ids'])} sources, IDs: {cluster['ids'][:5]}...")
+                if chatter > 2: print(f"  Positional cluster: {len(cluster['ids'])} sources, IDs: {cluster['ids'][:5]}...")
 
-    print(f"Total clustering done in {time.time() - start_time:.2f} seconds")
-    print(f"Found {len(clusters)} final clusters")
+    if chatter > 2:  print(f"Total clustering done in {time.time() - start_time:.2f} seconds")
+    if chatter > 2:  print(f"Found {len(clusters)} final clusters")
 
     # Optionally save clusters to a file
     if output_stuff:
@@ -629,7 +607,7 @@ def cluster_sources(ra, dec, pm_ra, pm_dec, id, pm_tolerance=0.001, pm_distance_
 ########## main ()  
 
 
-def mainsub2(chunk):
+def mainsub2(chunk,chatter=0):
     # get list of unique sources, output file handle, table, summary
     if onedone:   # limiting processing to just the hipm data (saves lots of time!)
        chunk = hipm_chunk
@@ -650,7 +628,6 @@ def mainsub2(chunk):
         outf2.write( f"{col[k]}," )
     if not onedone: outf.write(f"{col[nc-1]}\n")  
     outf2.write(f"{col[nc-1]}\n")  
-    
 
     #print("evaluating ",col," sources\n")
     if not onedone:
@@ -663,20 +640,41 @@ def mainsub2(chunk):
             k9 += 1
         outf.close()
         print (f"wrote {k9} records in {outf} for the low-pm sources ...")
-    
+        
+    # reset
     k9 = 0
 # now process the high pm rows
-
+    print (f"646 processing {len(tx)} high PM records")
+    #
+    # clean out high pm records that have bad PM values (PM/error < 10) > remove from tx
+    #
+    for trow in tx:
+        if chatter > 2: print (f"650 clean out PM/error < {Rpm_limit} ")
+        Rpm = trow[pm_cds]/np.sqrt( trow['e_pmRA']**2 + trow['e_pmDE']**2)
+        if Rpm < Rpm_limit:
+            trow['mismatchedPM'] = 2
+            create_csv_output_record(trow,outf2,col,nc)
+            k9 += 1
+    print (f"removed and flag to {k9} records ") 
+    print (f"658 check that tx updated too # mismatched is {len(tx[tx['mismatchedPM']==2])}")       
+    #        
+    # remove these records from further consideration       
+    q = tx['mismatchedPM'] != 2 
+    print (f"661 now processing remaining {q.sum()} high PM records")
+    #
+    # TBD clean out high PM records that have too large a mismatch Gmag and V ?
+    #
+    high_pm_rows = q.sum()
     print (f"processing {high_pm_rows} of high PM records\n")
     print (f"now check for sources with multiple records with same PM (which have likely moved) ")
     #
     # do a clustering analysis to identify those sources that cluster in PM and Ep 2000 coordinates
     #
-    ra = tx['ra2000Ep']
-    dec = tx['dec2000Ep']
-    pm_ra = tx['pmRA_cds']
-    pm_dec = tx['pmDE']
-    id = tx['IAUNAME']
+    ra = tx['ra2000Ep'][q]
+    dec = tx['dec2000Ep'][q]
+    pm_ra = tx['pmRA_cds'][q]
+    pm_dec = tx['pmDE'][q]
+    id = tx['IAUNAME'][q]
     clusters, cluster_data = cluster_sources(ra, dec, pm_ra, pm_dec, id, pm_tolerance=0.001, pm_distance_factor=0.01)
 
     # these records (IAUNAME/ids) are clusters 
@@ -684,32 +682,33 @@ def mainsub2(chunk):
     for cl in cluster_data['clusters']:
         for id1 in cl['ids']:
             srcids.append(id1)
-    print (f"of the {len(id)} high PM records, {len(srcids)} have multiple observation IAUNAME IDs\n")
+    print (f"of the high PM records, {len(srcids)} have multiple observation IAUNAME IDs\n")
     
-    t = Table(cat[1].data)    
+    #t = Table(tx[1].data)    
     notinit = []
-    for src3 in t['IAUNAME']:
+    for src3 in tx['IAUNAME']:
         if not src3 in srcids:
-           notinit.append(src)
+           notinit.append(src3)
     print (f"and {len(notinit)} are single sources")       
 
     # write the hi PM records that do not cluster
     for name in notinit:
-        trow = tx[where(tx['IAUNAME'] == name)]
-        create_csv_output_record(trow,outf2,col,nc)
+        trow = tx[np.where(tx['IAUNAME'] == name)]
+        create_csv_output_record(trow[0],outf2,col,nc)
         k9 += 1
     print (f"wrote so far {k9} records in {outf2} for the single sources ... ")
     #       
     # process the clusters    
     #
+    #tx.remove_index(pm_cds)
+    tx.add_index(iauname)
 
     for cluster in clusters:   
         
         # find the cluster members
         indices = cluster['indices']
-        #names   = cluster['ids']
-        sources = tx['IAUNAME'][indices]
-        tab_src = tx.loc[indices]        
+        names   = cluster['ids']
+        tab_src = tx.loc[names]        
         k9+=1                       
         tab_ma = ma.asarray(tab_src)
         nrow = tab_ma.size
@@ -743,21 +742,25 @@ def mainsub2(chunk):
             new_row['EPOCHS'] = epochlist
             new_row['SRCNUMS']= srcnumlist                
         #
-            print (f"=== === === === === \n491 tab.ma.size={nrow}\n new_row is\n{new_row};\ntype is {type(new_row)}\n === === === === === 491\n")
-            print (f"OBSIDS, EPOCHS:\n{new_row['OBSIDS']}\n{new_row['EPOCHS']}")    
+         #   print (f"=== === === === === \n 746 tab.ma.size={nrow}\n new_row is\n{new_row};\ntype is {type(new_row)}\n === === === === === 491\n")
+         #   print (f"OBSIDS, EPOCHS:\n{new_row['OBSIDS']}\n{new_row['EPOCHS']}")    
               
             check = True    
             for band in bands:   # loop over all filters - merge into one 
                 qf = tab_ma[band+"_QUALITY_FLAG_ST"]
-                print (f"523 checking {band}: quality_flag_st qf = {qf}\n qf.data={qf.data}523\n")
+                if chatter > 2: print (f"751 checking {band}: quality_flag_st qf = {qf}\n qf.data={qf.data}523\n")
                 qfaa = qf.data
-                qf_q = qfaa != ''
+                qfok = []
+                for x6 in qfaa:
+                    if len(x6) > 6: 
+                        qfok.append(x6)
+                if chatter > 2: print (f"757 qfok = {qfok}")        
                 if nrow > 1:
                     # QUALITY   
                     if (catalog == 'SUSS') | (catalog == "testsuss"):
-                        qf = qf[qf_q]
+                        qf = qfok
                         if len(qf) > 1:
-                            print (f"529 qf={qf}  err=\n{tab_src[band+'_AB_MAG_ERR']}")
+                            if chatter > 2: print (f"759 qf={qf}  err=\n{tab_src[band+'_AB_MAG_ERR']}")
                             if check:
                                 qual_st_out,ranked_quals = qual_st_merge(qf,err=tab_src[band+"_AB_MAG_ERR"])
                                 qual_out = qual_stflag2decimal(qual_st_out)
@@ -772,7 +775,7 @@ def mainsub2(chunk):
                         ix = qual_st_out == -999
                         #print (f"x: {type(ix)}  {ix}")
                         if ix:
-                            print (f" qual {qual_out}, st:{qual_st_out}\n")
+                            if chatter > 2: print (f" qual {qual_out}, st:{qual_st_out}\n")
                             qual_st_out = "" 
                             qual_out = np.nan
                     #if len(qual_st_out) != 12:
@@ -834,7 +837,6 @@ def mainsub2(chunk):
         print ("call create_csv_  834 ")
         create_csv_output_record(new_row,outf2,col,nc)  
 
-    outf.close()
     outf2.close()
     outerr.close()
 
