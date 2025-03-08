@@ -637,7 +637,7 @@ def mainsub(chunk):
                 new_row[band+'_ABMAG'] = med_mag
                 new_row[band+'_ABMAG_ERR'] = sigma_mag
                 new_row[band+'_ABMAG_MIN'] = min_mag
-            #new_row[band+'_VAR3'] = var3   # variability on 3-sigma 
+            #new_row[band+'_VAR3'] = var3   # variability on 3-sigma - obsoleted
             if nrow >1:
                 if (qual_out == 0) and (len(qf) > 1):  # there is a good detection amongst list
                     qchi = qf2[qf2_q] == 0  # index data with qual==0

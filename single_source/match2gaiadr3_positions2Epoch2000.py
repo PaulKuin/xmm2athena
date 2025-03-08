@@ -219,7 +219,7 @@ class finalise(object):
        # for now we make sure the match extension is present, and keep columns 1-138 only
        #     - this was solved - 
        """
-       from astropy.io import fits
+       from astropy.io import fits       # obsolete - replaced by scripts
        from astropy.table import Table
        filmat = ""
        filnomat = ""

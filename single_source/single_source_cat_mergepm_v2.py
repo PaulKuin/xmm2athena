@@ -44,6 +44,7 @@ catalog = "SUSS" #'testsuss' # 'SUSS' 'UVOTSSC2'
 outtable = None
 matched2gaia = "sussxgaiadr3_ep2000.fits"
 Rpm_limit = 10 # if PM/error < Rpm_limit the record will not be merged
+chatter = 0
 
 
 if catalog == 'SUSS':
@@ -51,7 +52,7 @@ if catalog == 'SUSS':
     chunk = "sussxgaiadr3_ep2000_singlerecs.fits" 
     pm_cds = "PM_cds"  # proper motion 
     Rplx = "RPlx"  # Parallax over Error
-    onedone = True # if the sources without large pm have been written already
+    onedone = False # if the sources without large pm have been written already
     hipm_chunk = "sussxgaiadr3_ep2000_singlerecs_hipm.fits"
 elif catalog == 'UVOTSSC2':
     rootobs = '/Users/kuin/pymodules/cats/' # /Users/data/catalogs/uvotssc2/' 
@@ -291,7 +292,8 @@ def fileio(infile,outstub="_stg2",outdir=""):
     outfile=instub+outstub+"a.csv"
     if not onedone: 
        outf = open(outdir+outfile,'w')  # file handle for all records that do not need another merge
-    outf = "outf"   
+    else:   
+       outf = "outf_296"   
     outfile2=instub+outstub+"b.csv"
     outf2 = open(outdir+outfile2,'w')  # for new merges 
     outerr = open(outdir+instub+"_err.csv",'w')  #was:file handle weird ones with same PM but different parallax_over_error
@@ -400,8 +402,9 @@ def qual_st_merge(qual_st,err=0.02):
        else:
           # convert to ranked and logicals
           ranked_quals = aa =  ranked_qual_st2qual(qual_st) #np.array(aa)
-          print (f"qual_st_merge 383 {60*'-'}\noriginal {qual_st}\ninteger flag values are: {aa}")    
-          print (f"qual_st_merge385 summed rows: {aa}")
+          if chatter > 3: 
+              print (f"qual_st_merge 383 {60*'-'}\noriginal {qual_st}\ninteger flag values are: {aa}")    
+              print (f"qual_st_merge385 summed rows: {aa}")
           qa = ma.min(aa) == aa
           k = ma.where(qa)[0]
           qualout = qual_st[k][0]
@@ -747,6 +750,7 @@ def mainsub2(chunk,chatter=0):
               
             check = True    
             for band in bands:   # loop over all filters - merge into one 
+                nobs_all = 0
                 qf = tab_ma[band+"_QUALITY_FLAG_ST"]
                 if chatter > 2: print (f"751 checking {band}: quality_flag_st qf = {qf}\n qf.data={qf.data}523\n")
                 qfaa = qf.data
@@ -754,6 +758,9 @@ def mainsub2(chunk,chatter=0):
                 for x6 in qfaa:
                     if len(x6) > 6: 
                         qfok.append(x6)
+                for x7 in tab_ma[band+"_NOBS"].data:
+                    nobs_all += x7
+                    if chatter > 3: print (f"759  for {x7} nobs_all = {nobs_all} cc")
                 if chatter > 2: print (f"757 qfok = {qfok}")        
                 if nrow > 1:
                     # QUALITY   
@@ -803,6 +810,12 @@ def mainsub2(chunk,chatter=0):
                 magx = tab_src[band+"_AB_MAG"]
                 errx = tab_src[band+"_AB_MAG_ERR"]
                 #print (f"magx={magx}, errx={errx}")
+                #
+                #  note: if we are merging data that have already multiple observations 
+                #        included, we should consider expanding those to do stats
+                #        WARNING that is not done here (although we keep track on the
+                #        nobs_all 
+                #
                 nObs, med_mag, chisq, sigma_mag, skew, var3 = stats(magx,err=errx,syserr=0.005)    
                 qmag = magx > 5
                 if len(magx[qmag]) > 0:
@@ -813,6 +826,14 @@ def mainsub2(chunk,chatter=0):
                 new_row[band+'_AB_MAG'] = med_mag
                 new_row[band+'_AB_MAG_ERR'] = sigma_mag
                 new_row[band+'_AB_MAG_MIN'] = min_mag
+                new_row[band+'_NOBS'] = nobs_all # nObs - use to test variability
+                if nObs > 1:
+                    new_row[band+'_CHI2RED'] = chisq/nObs
+                else:
+                    new_row[band+'_CHI2RED'] = np.nan                  
+                new_row[band+'_CHISQ'] = chisq
+                new_row[band+'_SKEW'] = skew
+                new_row['mismatchedPM'] = 3
 
             elif (catalog == 'UVOTSSC2') | (catalog == "test"):    
                 magx = tab_src[band+"_ABMAG"]
@@ -823,24 +844,31 @@ def mainsub2(chunk,chatter=0):
                 new_row[band+'_ABMAG_ERR'] = sigma_mag
                 new_row[band+'_ABMAG_MIN'] = min_mag
                 new_row[band+'_VAR3'] = var3   # variability on 3-sigma 
-
-            if (check & (catalog == 'SUSS') | (catalog == "testsuss"))| ( (catalog == 'UVOTSSC2') | (catalog == "test")):
+                new_row[band+'_NOBS'] = nObs
+                #new_row[band+'_CHI2RED'] = chisq/nObs
                 new_row[band+'_CHISQ'] = chisq
                 new_row[band+'_SKEW'] = skew
-                new_row[band+'_NOBS'] = nObs
 
             if check & (catalog == 'SUSS') | (catalog == "testsuss"):
                 new_row[band+'_EXTENDED_FLAG'] = base[band]  
             elif (catalog == 'UVOTSSC2') | (catalog == "test"):
                 new_row[band+'_EXTENDED'] = base[band]  
 
-        print ("call create_csv_  834 ")
+        if chatter > 0: print ("call create_csv_  834 ")
         create_csv_output_record(new_row,outf2,col,nc)  
 
     outf2.close()
     outerr.close()
 
-
+    #
+    #  join the two files
+    #
+    command = f"cat {outf} {outf2} > {instub+outstub+'.fits'}"
+    try:
+        if onedone == False:
+            os.system(command)
+    except:
+        pass
 
 ######### ######## ####### END
 
