@@ -1,3 +1,6 @@
+#!/bin/csh 
+alias topcat 'java -jar ~/bin/topcat-full.jar'
+# modified original script by mjp (npmk 2025-03-09)
 echo 
 echo Combine VISTA Viking and VHS data.
 date

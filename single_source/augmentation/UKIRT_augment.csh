@@ -22,19 +22,19 @@ topcat -stilts tpipe in=out4.fits out=SUSS_GCS_pet.fits cmd='delcols "ra_2 dec_2
 date
 echo
 echo
-echo  the LAS processing takes 4-5 hrs to run
+echo now starting the LAS processing:  takes 4-5 hrs to run
 echo
 date
 topcat -stilts coneskymatch in=SUSS_LAS.fits ifmt=fits out=out1.fits icmd='select (ra>0.0)' find=each ra=ra2000Ep dec=dec2000Ep servicetype=cone serviceurl='http://vizier.cds.unistra.fr/viz-bin/conesearch/II/319/las9?' sr=0.0001388888 verb=3 parallel=5 erract=retry4 ocmd='keepcols "ra dec pYmag e_pYmag pJmag1 e_pJmag1 pHmag e_pHmag pKmag e_pKmag";'
 #
 date
-#topcat -stilts tcat in="out1.fits out2.fits out3.fits out4.fits out5.fits out6.fits out7.fits out8.fits out10.fits out11.fits" out=out.fits 
 topcat -stilts tskymatch2 in1=SUSS_LAS.fits ifmt1=fits in2=out1.fits out=out.fits ra1='ra2000Ep' dec1='dec2000Ep' ra2='ra' dec2='dec' error=0.5 find=best1
 topcat -stilts tpipe in=out.fits out=SUSS_LAS_pet.fits cmd='delcols "ra_2 dec_2 GroupID GroupSize Separation"'
 date
 echo
 echo Forget about GPS survey as there are no petrosian magnitudes in GPS.
 echo
+################
 echo
 echo Now connect all the UKIDSS surveys together
 echo
@@ -44,7 +44,7 @@ echo
 echo add GPS survey
 date
 echo 
-topcat -stilts tmatch2 in1=temp_in.fits ifmt1=fits in2=SUSS_GPS.fits out=temp.fits matcher=exact+exact values1='SRCNUM OBSID' values2='SRCNUM2 OBSID2' find=best1 join=all1 fixcols=none icmd2='colmeta -name SRCNUM2 "SRCNUM"; colmeta -name OBSID2 "OBSID"; colmeta -name GPS_jmag "jAperMag3"; colmeta -name GPS_e_jmag "jAperMag3Err"; colmeta -name GPS_hmag "hAperMag3"; colmeta -name GPS_e_hmag "hAperMag3Err"; colmeta -name GPS_kmag "k_1AperMag3"; colmeta -name GPS_e_kmag "k_1AperMag3Err"; colmeta -name GP2_kmag "k_2AperMag3"; colmeta -name GP2_e_kmag "k_2AperMag3Err"; keepcols "SRCNUM2 OBSID2 GPS_jmag GPS_e_jmag GPS_hmag GPS_e_hmag GPS_kmag GPS_e_kmag GP2_kmag GP2_e_kmag"' ocmd='delcols "SRCNUM2 OBSID2 GroupID GroupSize Separation"'
+topcat -stilts tmatch2 in1=temp_in.fits ifmt1=fits in2=SUSS_GPS.fits out=temp.fits matcher=exact+exact values1='SRCNUM OBSID' values2='SRCNUM2 OBSID2' find=best1 join=all1 fixcols=none icmd2='colmeta -name SRCNUM2 "SRCNUM"; colmeta -name OBSID2 "OBSID"; colmeta -name GPS_jmag "jAperMag3"; colmeta -name GPS_e_jmag "jAperMag3Err"; colmeta -name GPS_hmag "hAperMag3"; colmeta -name GPS_e_hmag "hAperMag3Err"; colmeta -name GPS_kmag "k_1AperMag3"; colmeta -name GPS_e_kmag "k_1AperMag3Err"; colmeta -name GP2_kmag "k_2AperMag3"; colmeta -name GP2_e_kmag "k_2AperMag3Err"; keepcols "SRCNUM2 OBSID2 GPS_jmag GPS_e_jmag GPS_hmag GPS_e_hmag GPS_kmag GPS_e_kmag GP2_kmag GP2_e_kmag"' ocmd='delcols "SRCNUM2 OBSID2  Separation"'
 cp temp.fits temp_in.fits
 echo 
 echo add LAS survey
@@ -53,6 +53,7 @@ echo
 topcat -stilts tmatch2 in1=temp_in.fits ifmt1=fits in2=SUSS_LAS_pet.fits out=temp.fits matcher=exact+exact values1='SRCNUM OBSID' values2='SRCNUM2 OBSID2' find=best1 join=all1 fixcols=none icmd2='colmeta -name SRCNUM2 "SRCNUM"; colmeta -name OBSID2 "OBSID"; colmeta -name LAS_ymag "yAperMag3"; colmeta -name LAS_e_ymag "yAperMag3Err"; colmeta -name LAS_jmag "j_1AperMag3"; colmeta -name LAS_e_jmag "j_1AperMag3Err"; colmeta -name LAS_hmag "hAperMag3"; colmeta -name LAS_e_hmag "hAperMag3Err"; colmeta -name LAS_kmag "kAperMag3"; colmeta -name LAS_e_kmag "kAperMag3Err"; colmeta -name LAS_yPmag "pYmag"; colmeta -name LAS_e_yPmag "e_pYmag"; colmeta -name LAS_jPmag "pJmag1"; colmeta -name LAS_e_jPmag "e_pJmag1"; colmeta -name LAS_hPmag "pHmag"; colmeta -name LAS_e_hPmag "e_pHmag"; colmeta -name LAS_kPmag "pKmag"; colmeta -name LAS_e_kPmag "e_pKmag"; keepcols "SRCNUM2 OBSID2 LAS_ymag LAS_e_ymag LAS_jmag LAS_e_jmag LAS_hmag LAS_e_hmag LAS_kmag LAS_e_kmag LAS_yPmag LAS_e_yPmag LAS_jPmag LAS_e_jPmag LAS_hPmag LAS_e_hPmag LAS_kPmag LAS_e_kPmag"' ocmd='delcols "SRCNUM2 OBSID2 Separation"'
 cp temp.fits temp_in.fits
 echo
+################
 echo Now onto magnitude prioritization
 echo 
 echo Prioritize K magnitudes.
@@ -113,3 +114,4 @@ echo Rename Petrosian Z magnitudes.
 date
 echo 
 topcat -stilts tpipe in=temp_in.fits out=SUSS_UK_pet.fits cmd='colmeta -name UK_zPmag "GCS_zPmag";colmeta -name UK_e_zPmag "GCS_e_zPmag"'
+echo done

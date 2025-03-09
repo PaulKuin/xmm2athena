@@ -1,8 +1,10 @@
+#!/bin/csh
+alias topcat 'java -jar ~/bin/topcat-full.jar '
 echo 
 echo Convert UKIDSS magnitudes to AB.
 date
 echo 
-topcat -stilts tpipe in=SUSS_aug_V3.fits.gz out=temp.fits \
+topcat -stilts tpipe in=SUSS_aug_V5.fits out=temp.fits \
 cmd='\
 addcol -units ABmag AB_UK_zmag "(UK_zmag + 0.528)";\
 addcol -units ABmag AB_UK_e_zmag "UK_e_zmag";\
@@ -121,7 +123,7 @@ echo
 echo Now change the units of the SM and PS magnitudes to AB mag too.
 date
 echo 
-topcat -stilts tpipe in=temp_in.fits out=SUSS_aug_V4.fits \
+topcat -stilts tpipe in=temp_in.fits out=temp.fits \
 cmd='\
 colmeta -units ABmag "PS_gmag";\
 colmeta -units ABmag "PS_e_gmag";\
@@ -168,4 +170,6 @@ colmeta -units ABmag "SM_e_zmag";\
 colmeta -units ABmag "SM_zPmag";\
 colmeta -units ABmag "SM_e_zPmag";\
 '
-gzip SUSS_aug_V4.fits
+mv temp.fits SUSS_aug_V5AB.fits
+rm SUSS_aug_V5.fits
+rm temp.fits temp_in.fits out.fits out1.fits
