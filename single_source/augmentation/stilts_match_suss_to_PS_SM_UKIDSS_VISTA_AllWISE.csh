@@ -8,7 +8,7 @@ echo   SUSS_PS.fits Pan-Starrs done
 date
 echo 
 #java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/358/smss in=singlesourcecat2.fits out=SUSS_SMdr1.1.fits find=each  ra=ra2000Ep dec=dec2000Ep radius=3 
-java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/379/smssdr4 in=singlesourcecat2.fits out=SUSS_SMdr4.fits find=each  ra=ra2000Ep dec=dec2000Ep radius=3 
+java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/379/smssdr4 in=singlesourcecat2.fits out=SUSS_SM.fits find=each  ra=ra2000Ep dec=dec2000Ep radius=3 
 echo   SUSS_SM.fits    Sky Mapper done
 date                 
 echo 
@@ -24,7 +24,7 @@ java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/319/d
 echo        UKIDSS DXS
 date                 
 echo 
-java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/316/gps6 in=singlesourcecat2.fits out=SUSS_GCS.fits find=each ra=ra2000Ep dec=dec2000Ep radius=3 
+java -jar /Users/kuin/bin/topcat-full.jar  -stilts cdsskymatch cdstable=II/316/gps6 in=singlesourcecat2.fits out=SUSS_GPS.fits find=each ra=ra2000Ep dec=dec2000Ep radius=3 
 echo        UKIDSS GPS 
 date    
 echo 
