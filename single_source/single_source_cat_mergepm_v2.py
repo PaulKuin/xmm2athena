@@ -637,6 +637,10 @@ def mainsub2(chunk,chatter=0):
         k9 = 0    # counter records
 
         # first with the sources with low PM
+        #
+        # ** this should be done by a stilts script to save two hours **
+        # f"java -jar ~/bin/topcat-full.jar -stilts tpipe in={} out={} select='PM_cds < 20' "
+        #
         for trow in ty:
             print ("call create_csv_  484")
             create_csv_output_record(trow,outf,col,nc)
@@ -859,11 +863,11 @@ def mainsub2(chunk,chatter=0):
 
     outf2.close()
     outerr.close()
-
     #
-    #  join the two files
+    #  join the two files --  use a stilts join instead -- 
     #
-    command = f"cat {outf} {outf2} > {instub+outstub+'.fits'}"
+    command = f"java -jar ~/bin/topcat-full.jar -stilts tcat in='{outf} {outf2}' ifmt=CSV out={outfile[:-4]}.fits ofmt=fits"
+    #command = f"cat {outf} {outf2} > {outfile[:-4}.csv"
     try:
         if onedone == False:
             os.system(command)
