@@ -63,5 +63,6 @@ cp $temp2 $OUTprep
 echo
 echo merge to make the column class and clean up
 echo
-topcat -stilts tpipe in=$temp2 out=$OUTprep ifmt=fits ofmt=fits find=each cmd='addcol class class0+class1+class2 ' cmd='delcols "spCl_* Q_* IAUNAME3 class0 class1 class2"'
+topcat -stilts tpipe in=$temp2 out=$OUTprep ifmt=fits ofmt=fits cmd='addcol class class0+class1+class2 ' cmd='delcols "spCl_* Q_* IAUNAME2 class0 class1 class2"'
 echo
+rm $temp1 $temp2 $sdss
