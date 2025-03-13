@@ -58,11 +58,19 @@ topcat -stilts tpipe in=$sdss ifmt=fits out=galaxy_training_setIDs.fits cmd='sel
 echo
 echo add col class2
 echo
-topcat -stilts tmatch2 in1=$OUTprep in2=galaxy_training_setIDs.fits ifmt1=fits ifmt2=fits matcher=exact values1="IAUNAME" values2="IAUNAME2" join=all1 find=best1 icmd1='delcols IAUNAME3' icmd2='colmeta -name IAUNAME2 "IAUNAME"' ocmd='addcol class2 (equals(IAUNAME,IAUNAME2)?2:NULL)' out=$temp2 ofmt=fits
+topcat -stilts tmatch2 in1=$OUTprep in2=galaxy_training_setIDs.fits ifmt1=fits ifmt2=fits matcher=exact values1="IAUNAME" values2="IAUNAME3" join=all1 find=best1 icmd1='delcols IAUNAME3' icmd2='colmeta -name IAUNAME3 "IAUNAME"' ocmd='addcol class2 (equals(IAUNAME,IAUNAME2)?2:NULL)' out=$temp2 ofmt=fits
 cp $temp2 $OUTprep
 echo
 echo merge to make the column class and clean up
 echo
-topcat -stilts tpipe in=$temp2 out=$OUTprep ifmt=fits ofmt=fits cmd='addcol class class0+class1+class2 ' cmd='delcols "spCl_* Q_* IAUNAME2 class0 class1 class2"'
+topcat -stilts tpipe in=$temp2 out=temp4python.fits ifmt=fits ofmt=fits cmd='keepcols "IAUNAME class0 class1 class2 "'
+echo   ... running a short python add_class script to merge classx columns
+python add_class.py 
+topcat -stilts tmatch2 in1=$temp2 in2=temp4python.fits out=$OUTprep ifmt1=fits ifmt2=fits ofmt=fits matcher=exact values1="IAUNAME" values2="IAUNAME3" join=all1 find=best1 icmd2='colmeta -name IAUNAME3 "IAUNAME"' icmd1='delcols "class0 class1 class2 IAUNAME2 spCl_* Q_*"' ocmd='delcols  "class0 class1 class2 GroupID GroupSize IAUNAME3"
+echo
+# the following seems correct but does not work:
+#topcat -stilts tpipe in=$temp2 out=$OUTprep ifmt=fits ofmt=fits \
+#cmd='addcol -utype short class "(class0 == NULL && class1 == NULL && class2 == NULL) ? NULL : (short)((class0 == NULL ? 0 : class0) + (class1 == NULL ? 0 : class1) + (class2 == NULL ? 0 : class2))"' \
+#cmd='delcols "spCl_* Q_* IAUNAME2 class0 class1 class2"'
 echo
 rm $temp1 $temp2 $sdss

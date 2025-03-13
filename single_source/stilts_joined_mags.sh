@@ -132,29 +132,18 @@ java -jar $BIN/topcat-full.jar -stilts tpipe \
   out=$OUT1  \
   ifmt='fits' ofmt='fits' \ 
   cmd=" delcols 'PS_* SM_?mag SM_e_?mag UK_?mag UK_e_?mag VI_* '; \ 
-  addcol uvw2_uvm2 UVW2_AB_MAG-UVM2_AB_MAG; \  
-  addcol uvm2_uvw1 UVM2_AB_MAG-UVW1_AB_MAG; \  
-  addcol uvw1_u    UVW1_AB_MAG-umag;\
-  addcol b_v       B_AB_MAG-vmag; \
-  addcol g_r       gmag-rmag; \
-  addcol r_i       rmag-imag; \
-  addcol i_z       imag-zmag; \
-  addcol z-y       zmag-ymag; \
-  addcol j_z       jmag-zmag; \
-  addcol h_j       hmag-jmag; \
-  addcol k_h       kmag-hmag; \
-  addcol W1_z      WI_W1mag-zmag; \
-  addcol W2_W1     WI_W2mag-WI_W1mag; \
-  addcol W3_w2     WI_W3mag-WI_W2mag; \
-  addcol W4_w3     WI_W4mag-WI_W3mag; \
-  addcol gPK_uPmag gPKmag-SM_uPmag;  \
-  addcol gPK_g     pPKmag-gmag;  \
-  addcol rPK_gPmag rPKmag-gPKmag;  \
-  addcol rPK_r     pPKmag-gmag;  \
-  addcol iPK_rPmag iPKmag-rPKmag;  \
-  addcol iPK_i     iPKmag-imag;  \
-  addcol zPK_iPmag zPKmag-iPKmag;  \
-  addcol zPK_z     zPKmag-zmag;  \
+  addcol uvw2_uvw1       UVW2_AB_MAG-UVW1_AB_MAG; \  
+  addcol uvm2_uvw1       UVM2_AB_MAG-UVW1_AB_MAG; \  
+  addcol uvw1_u          UVW1_AB_MAG-umag;\  
+  addcol OMu-b             U_AB_MAG-B_AB_MAG;\
+  addcol b_v             bmag-vmag; \
+  # BP_RP 
+  uvw1_Gmag              UVW1_AB_MAG-Gmag; \
+  addcol u_r             umag-rmag; \
+  addcol k_W1            kmag-WI_W1; \  
+  addcol W2_W1           WI_W2mag-WI_W1mag; \
+  addcol gaia_extended   Gmag-g; \  
+  addcol Gaia_G_WISE_W1  '((BII>10.0)||(BII<-10.0))&&(WI_W1mag<16.0)&&!(gaiadr3_ra<500.0)?(20.0-WI_W1mag):(Gaia_Gmag<15.6)&&!(WI_W1mag>0.0)?(Gaia_Gmag-17.1):(gaia_Gmag-WI_W1mag)'; \
   delcols  imag jmag hmag kmag WI_e_* WI_W4mag WI_W3mag WI_W2mag "
 
 echo FITS output done; CSV next  
@@ -163,7 +152,7 @@ java -jar $BIN/topcat-full.jar -stilts tpipe \
   out=$OUT  \
   ifmt='fits' ofmt='csv' 
     
-echo colours and normal-Petrosion/Kron done and useless magnitudes removed
+echo colours and normal-Petrosion/Kron done and survey individual magnitudes removed
 echo colours are defined using underscores to separate bands
 echo imag,jmag,hmag,kmag,WI_e_*,WI_W4mag,WI_W3mag,WI_W2mag removed
 echo -----
