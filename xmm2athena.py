@@ -1,6 +1,69 @@
 
 # code for updating / adding to the SUSS catalog SUMMARY and SOURCE 
 
+#
+# preprocessing
+#
+# same as make_file_variable below
+catversion = 16
+# this is where the code expects the topcat-full.jar executable
+TOPCATPATH = "/Users/kuin/bin" 
+"""
+    print('match')
+    # match 
+    in1 = "allsources.txt"
+    catin1 = "allsources_1.txt"
+    catin2 = inputcat
+    outcat = f"SimbadxSUSS5_variable_sources_v{catversion}.fits"
+    xgaiavar = "xgaiavar.fits"
+    xsimbad = "xsimbad.fits"
+"""
+# output catalogue for the variable sources
+#
+outcat = f"SimbadxSUSS5_variable_sources_v{catversion}.fits"
+#
+# *** inputs for make_file_variable( ) :
+#
+inputdir = '/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/'
+
+# the single source catalogue input
+inputcat = "XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6.fits"
+
+# filter to process
+band = 'uvw1' # one of uvw2,uvm2,uvw1,u,b,v
+
+# minimum required chi-squared reduced for inclusion (will reject data with quality # 0)
+chi2_red_min = 5.0
+
+# select only records from the single source catalogue which have good quality ? 
+onlyqualzero = False
+
+# set the minimum required source distance for inclusion in the variability 
+min_srcdist  = 6.0
+
+# minimum number of valid data points for inclusion into result
+minnumber = 5
+
+# name of file listing bad obsids
+bad_obsidfile = "remove_obsidfile_here.txt"
+
+# verbosity
+chatter = 2
+
+# names of RA, Dec columns at Epoch 2000, ICRS
+RA2000 = "RAJ2000Ep2000" 
+DE2000 = "DEJ2000Ep2000"
+
+# make plots 
+make_plots = True
+
+# directory for putting the light curves fits files and the plots, relative to inputdir
+var_lc = '../var_lc/'
+
+
+
+##########################################################################################
+
 #from numba import jit
 import numpy as np
 import numpy.ma as ma
@@ -263,6 +326,7 @@ def _add_epoch_col():
    # g.add_column(pos_epoch[0],name='RA_OBS_EP')
    # g.add_column(pos_epoch[1],name='DE_OBS_EP')
    return g,obs_epoch,pos_epoch
+
 
 def write(outputlist):   
    xo = open( output, 'w')
@@ -1873,20 +1937,7 @@ def make_file_variable( band='uvw1', minnumber=10, maxnumber=1000,
     for recnum in range(recnums[0],recnums[1]): # process each variable source of <band> 
         print (f"\n\tStarting search for records in  recnum= {recnum} out of {recnums[0]},{recnums[1]}")
 
-        """  
-        decrepated:
-        # what to look for
-        if iauname != None: 
-           recnum = v['IAUNAME'] == iauname
-    
-        if pos != None:
-           ra = pos.ra.deg
-           dec = pos.dec.deg       
-        if pos == None and iauname == None:
-            if recnum < 0:
-                raise IOError("give position pos(astropy.coordinates) or iauname as input")
-        """   
-        # new: select records based on SRCNUM in v => get all sources in image
+        # select records based on SRCNUM in v => get all sources in image
         
         rec = v[recnum]
         srcn1 = rec['SRCNUMS'].split('_')
@@ -1983,19 +2034,7 @@ def make_file_variable( band='uvw1', minnumber=10, maxnumber=1000,
             continue
         else:
             counter+=1
-    
-        """   
-        ... included with qual=0 above       
-        # abort when not enough point-like sources
-        qxt = t2[f"{band.upper()}_EXTENDED_FLAG"] == 0
-        if qxt.sum() < minnumber: 
-           ngood -= 1
-           print (f"skipping {srcn1} because no longer {minnumber} observations; {ngood} left")
-           continue
-        """
-        
-         
-        
+            
 #  write output file
                
         #nobs = rec['UVW2_NOBS']+rec['UVM2_NOBS']+rec['UVW1_NOBS']+rec['U_NOBS']
@@ -2003,9 +2042,9 @@ def make_file_variable( band='uvw1', minnumber=10, maxnumber=1000,
         cl1 = np.array(['star','qso','galaxy'])
         class1 = cl1[rec['predicted_class']]
         
-        # create IAUname2 for Epoch 2000, J2000
-        ra2  = rec["RAJ2000Ep2000"] 
-        dec2 = rec["DEJ2000Ep2000"]
+        # create IAUname2 for Epoch 2000, ICRS
+        ra2  = rec[RA2000] 
+        dec2 = rec[DE2000]
         newra,newdec = degrees2sexagesimal(ra2,dec2,as_string=True)
         newra = newra.replace(":","")
         newdec = newdec.replace(":","")
@@ -2039,8 +2078,8 @@ def make_file_variable( band='uvw1', minnumber=10, maxnumber=1000,
         hdu1.header['EXTNAME'] = name
         
         hdu1.header['iauname'] = rec['IAUNAME']
-        hdu1.header['RA']      = (rec['RAJ2000Ep2000'],'J2000ep2000')
-        hdu1.header['Dec']     = (rec['DEJ2000Ep2000'],'J2000ep2000')
+        hdu1.header['RA']      = (rec[RA2000],'J2000ep/ICRS')
+        hdu1.header['Dec']     = (rec[DE2000],'J2000ep/ICRS')
         hdu1.header['class']   = (rec['predicted_class'],'predicted class')
         #if np.isfinite(rec['chi2red']): hdu1.header['chi2red'] = (rec['chi2red'],'reduced chi-squared, median from six filters')
         #hdu1.header['main_id'] = (rec['main_id'],'SIMBAD')
@@ -2290,13 +2329,13 @@ def plot_lc(lcfile,simbad=False,minpnts=10,noplot=False):
             if FAP < 0.03:
                 s11 +=f"\n FAP = {FAP:.3f}\n Period={period/365.25:.3f} d"  
             ax2.text(0.02,0.15,
-                f"RA={pa['RAJ2000Ep2000'][0]:10.5f} deg\nDec={pa['DEJ2000Ep2000'][0]:10.5f} deg\n"+
+                f"RA={pa[RA2000][0]:10.5f} deg\nDec={pa[DE2000][0]:10.5f} deg\n"+
                     f"classification={cl}\nfilter={band[3].upper()}\n"+s10+s11
                     #f"={cl}\n{lc_class}\nfilter={band[3].upper()}\n"+s10+s11
                   ,ha='left',fontsize=8,
                   )
         else:           
-           ax2.text(0.02,0.3,f"RA={pa['RAJ2000Ep2000'][0]:10.5f} deg\nDec={pa['DEJ2000Ep2000'][0]:10.5f} deg\n"+
+           ax2.text(0.02,0.3,f"RA={pa[RA2000][0]:10.5f} deg\nDec={pa[DE2000][0]:10.5f} deg\n"+
                     f"classification={cl}\nfilter={band[3].upper()}\n{s9}\n",ha='left',fontsize=9,
                     #f"={cl}\n{lc_class}\nfilter={band[3].upper()}\n{s9}\n",ha='left',fontsize=9,
                   )
@@ -2519,7 +2558,7 @@ def preprocessing(
         minnumber=10,  
         chi2_red_min=5., 
         inputdir='/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/',
-        inputcat="XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6.fits",
+        inputcat="XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6_UVqual=0.fits",
         onlyqualzero=False,
         min_srcdist=6.0,
         chatter=2,
@@ -2598,11 +2637,13 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     
     save the catalogue file:
         => SimbadxSUSS5_variable_sources_vXX.fits
+
     """
     import os
     from cats import xmm2athena as xmm2
 
     if not os.access(f"{inputdir}/../var_lc",os.F_OK):
+       print (f"WARNING ould not locate the var_lc directory, making one below {inputdir}")
        os.system(f"mkdir {inputdir}/../var_lc")
     indir = f"{inputdir}/../var_lc/"
     os.system(f"cd {indir}")
@@ -2614,16 +2655,18 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
             inputdir=inputdir,
             inputcat=inputcat,
             )
+    print (f"writing the list of X*.fits files as allsources.txt")        
     os.system(f"ls -1 X*.fits > allsources.txt")
-
+    #
     # make catalogue for selection - match allsources.txt to inputcat
+    #
     TOPCATPATH = "/Users/kuin/bin" 
     print('match')
     # match 
     in1 = "allsources.txt"
     catin1 = "allsources_1.txt"
     catin2 = inputcat
-    outcat = f"SimbadxSUSS5_variable_sources_v{catversion}.fits"
+    #outcat = f"SimbadxSUSS5_variable_sources_v{catversion}.fits"
     xgaiavar = "xgaiavar.fits"
     xsimbad = "xsimbad.fits"
     
@@ -2633,7 +2676,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     print('2600 ',command)
     status = os.system(command)
     if status > 0: 
-        print(f"2600 FOUT!ERROR in {command} ")
+        print(f"2600 ERROR in {command} ")
        
     command=f"java -jar {TOPCATPATH}/topcat-full.jar -stilts "+\
     f"tmatch2 in1={catin1} ifmt1=ascii  in2={catin2} ifmt2=fits "+\
@@ -2683,8 +2726,10 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     
     
 def post_process_variables1(       
-    indir="/Volumes/DATA11/data/catalogs/suss_gaia_epic/var_lc/",
-    minpnts=5, threesigma=4.0,
+    #indir="/Volumes/DATA11/data/catalogs/suss_gaia_epic/var_lc/",
+    indir = inputdir+var_lc,
+    minpnts=minnumber, 
+    threesigma=chi2_red_min,
     ):
     """
     first extract the set of light curves for selected sources
@@ -3146,7 +3191,7 @@ tt.write("SUSS_variables_single.fits")
 def update_cataloguefile(file2,badobsids):
     """
     This procedure is to update the catalogue by removing 
-    obsids.
+    obsids in the three columns called OBSIDS, SRCNUMS, EPOCHS.
     
     """
     from astropy.io import fits
