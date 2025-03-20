@@ -47,6 +47,8 @@ minnumber = 5
 # name of file listing bad obsids
 bad_obsidfile = "remove_obsidfile_here.txt"
 
+# tracing the selections log
+tracing_log = 'tracing.txt'
 # verbosity
 chatter = 2
 
@@ -710,6 +712,9 @@ def gaia_cat(root='.',o1=0,o2=10):
 
     using conesearch in astroquery
     
+    2025-03-20 npmk: this is superseded in part by the pipeline code on github/PaulKuin/xmm2athena-OM/
+       see the wiki on that github repo
+    
     """
     
     import os
@@ -1001,6 +1006,8 @@ def pnt_from_obsid(obsid=None, obsidlist='/users/data/catalogs/suss_gaia_epic/4x
     """
     obsid is 10 bytes long text
     return all rows if obsid == None
+    
+    for work with 4XMM
     """
     from astropy.table import Table
     from astropy.io import fits
@@ -1029,6 +1036,9 @@ def fix_coordinates(infile,outfile):
     -- make new positions col RAJ2000Ep2000, DecJ2000Ep2000 by copying the observed 
        positions for all from the observed epoch except for the ones with astrometry.
     -- outfile must be of type <name>.fits   
+    
+    2025-03-20 npmk; obsolete, I think
+    
     """    
     from astropy.table import Table
     from astropy.io import fits
@@ -1092,6 +1102,9 @@ def add_class(cat, classx={'STAR':0,'QSO':1,'GALAXY':2,},
     
     see Hugo auto_classes.py for more complicated selections across many catalogues
     
+    2025-03-20 : npmk - this is now done earlier on by the add_class.csh script when 
+       making the single source catalogue
+    
     """
     from astropy.table import Table
     import numpy.ma as ma
@@ -1113,9 +1126,6 @@ def add_class(cat, classx={'STAR':0,'QSO':1,'GALAXY':2,},
     input_table['class'][a1_idx] = classx['QSO']
     dum, a1_idx, a2_adx = np.intersect1d(input_table['IAUNAME'],galids,return_indices=True)    
     input_table['class'][a1_idx] = classx['GALAXY']
-    
-    #for C in classes.keys():
-    #    input_table['class'][input_table[row] == C] = classes[C]
     
     return Table(input_table)
     
@@ -1771,15 +1781,15 @@ The outlier histogram for this set as compared to the full catalogue shows
 
 """
 
-def make_file_variable( band='uvw1', minnumber=10, maxnumber=1000, 
-         chi2_red_min=5., 
-         inputdir='/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/',
-            ##inputcat="XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6xSIMBAD.fits.gz",
-         inputcat="XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6.fits",
-         selectrecs=[0,60000000.], plotit=False, onlyqualzero=False,
-         min_srcdist=6.0,
-         bad_obsidfile="remove_obsidfile_here.txt",
-         chatter=2):
+def make_file_variable( band=band, minnumber=minnumber, maxnumber=1000, 
+         chi2_red_min=chi2_red_min, 
+         inputdir=inputdir,
+         inputcat=inputcat, 
+         selectrecs=[0,60000000.], plotit=make_plots, 
+         onlyqualzero=onlyqualzero,
+         min_srcdist=min_srcdist,
+         bad_obsidfile=bad_obsidfile,
+         chatter=chatter):
     """
     
     given the single source catalogue (SSCenh) which includes NOBS and 
@@ -1821,6 +1831,8 @@ def make_file_variable( band='uvw1', minnumber=10, maxnumber=1000,
        modify plot 
     
     Aug 2024: added reading in for the bad obsids 
+    
+    March 2025: better tracing of the selections made 
     
     """
 
@@ -2538,7 +2550,7 @@ def classify_light_curve(time, flux, err, fig, noplot):
 
 
 def concatenate_variable_sussfiles(
-       indir="/Volumes/DATA11/data/catalogs/suss_gaia_epic/var_lc/lc_fits/"):
+       indir=inputdir+var_lc#"/Volumes/DATA11/data/catalogs/suss_gaia_epic/var_lc/lc_fits/"):
     """
     We created a fits file with the enhanced SUSS records for each variable. 
     For easy searching and stats we want to concatenate the first extensions 
@@ -2555,16 +2567,16 @@ def concatenate_variable_sussfiles(
     t0.write(f"{indir}/../concatenated_variable_sussfiles.fits")
  
 def preprocessing(
-        minnumber=10,  
-        chi2_red_min=5., 
-        inputdir='/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/',
-        inputcat="XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6_UVqual=0.fits",
-        onlyqualzero=False,
-        min_srcdist=6.0,
-        chatter=2,
-        minpnts=5, 
-        threesigma=5.0,
-        catversion=16,
+        minnumber=minnumber,  
+        chi2_red_min=chi2_red_min., 
+        inputdir=inputdir#'/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/',
+        inputcat=inputcat#"XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6_UVqual=0.fits",
+        onlyqualzero=onlyqualzero,
+        min_srcdist=min_srcdist,
+        chatter=chatter,
+        minpnts=minpnts, 
+        threesigma=threesigma,
+        catversion=catversion,
     ): 
     """
     first extract the set of light curves for selected sources
@@ -2732,6 +2744,8 @@ def post_process_variables1(
     threesigma=chi2_red_min,
     ):
     """
+    What post-processing is being done:
+    
     first extract the set of light curves for selected sources
     
     The selection criteria are:
@@ -3120,6 +3134,124 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     # repeat earlier code with 'file3' to recompute n_all, n_gaia (not implemented here)
      
 """
+
+"""                
+                             
+    return n_all,n_gaia, bad_obsid, good_obsids, results, source_results
+    
+ # end post processing                               
+
+ # end post processing                               
+
+ # end post processing                               
+
+
+def update_cataloguefile(file2,badobsids):
+    """
+    This procedure is to update the catalogue by removing 
+    obsids in the three columns called OBSIDS, SRCNUMS, EPOCHS.
+    
+    """
+    from astropy.io import fits
+    
+    print (f"updating {file2}")
+    with fits.open(file2,"update") as f1:
+         o1in = f1[1].data['OBSIDS']
+         s1in = f1[1].data['SRCNUMS']
+         e1in = f1[1].data['EPOCHS']
+           # o1 is a list of obsids as a long string for each source 
+           # need to iterate over the sources 
+         for k1 in range(len(o1in)):  
+             o1 = o1in[k1].split("_")
+             s1 = s1in[k1].split("_")
+             e1 = e1in[k1].split("_")
+             
+             o3 = ""  # to fill with updated lists
+             s3 = ""
+             e3 = ""
+             
+             for o2, s2, e2 in zip(o1,s1,e1):
+                 # o2, s2, and e2 are strings
+                 ok = True
+                 for bk in badobsids:
+                     if (len(o2)>0):
+                         if (int(bk) == int(o2)): 
+                             ok = False
+                 if ok: 
+                    o3 += f"{o2:10}_"
+                    s3 += f"{s2}_"
+                    e3 += f"{e2:10}_"        
+             o1in[k1] = o3[:-1]       
+             s1in[k1] = s3[:-1]       
+             e1in[k1] = e3[:-1]       
+         #update f1 
+         f1[1].data['OBSIDS']  = o1in
+         f1[1].data['SRCNUMS'] = s1in
+         f1[1].data['EPOCHS']  = e1in
+
+    print (f"finished update")
+
+
+
+def fix_multiple_obsids_in_SUSS5(t,filt,chatter=0):
+    """
+    In SUSS5 for each OBSIDs all exposures should have been summed into one row. 
+    Unfortunately, for some sources there are two rows. Assuming that one row is the 
+    summed data, the other not, and discriminating on <filt>_AB_MAG_ERR we remove 
+    the lesser boy and return the corrected Table. 
+    
+    Requirement: input Table is for a single SRCNUM and FILTER filt. 
+    """
+    # check type t is Table...
+    t.sort('OBSID')
+    bad_rows = [] # list of bad row numbers
+    #row_a = t[0]
+    k1 = 0
+    kays = [0]
+    bad_rows = [-1]
+    for k in np.arange(1,len(t)):
+        row_a =  t[k1]
+        if chatter > 1: print (f"k = {k} , k1 = {k1}")
+        err_a = row_a[filt.upper()+'_AB_MAG_ERR']
+        row_b = t[k]
+        err_b = row_b[filt.upper()+'_AB_MAG_ERR']
+        if chatter > 1: print (f"{row_a['OBSID']} {row_b['OBSID']}  {err_a} {err_b}  ")
+        if row_a['OBSID'] == row_b['OBSID']:
+            # find the bad one (was: assume only pairs) 
+            kays.append(k)
+            if chatter > 1: print (f"SAME OBSIDS: ")
+            s1 = row_a[f'{filt.upper()}_AB_MAG_ERR'] < row_b[f'{filt.upper()}_AB_MAG_ERR'] 
+            if s1:
+               if bad_rows[-1] not in kays: #k-1:  # more than 2 in a row
+                  bad_rows.append(k1)
+            else:  # error row_b < err row_a
+               k1 = k
+               if bad_rows[-1] not in kays: 
+                  bad_rows.append(k)      
+            if chatter > 1: print (bad_rows)    
+        # reset
+        else:  # no OBSID match 
+           k1 = k 
+           kays = [k1]             
+    # now remove the bad rows
+    a = bad_rows.pop(0)
+    if chatter > 1 : print (f"BAD ROWS are:{bad_rows}")
+    if len(bad_rows) > 0:
+        if chatter > 0: print (f"2be removed {len(bad_rows)} erronous OBSIDs")
+        t.remove_rows(bad_rows)   
+    return t
+
+################# end 
+
+"""
+Notes:
+
+
+
+----
+
+
+----
   Code to extract the summary/index file to the light curve directory
 
 $ ls -1 > allfiles__.txt
@@ -3177,62 +3309,7 @@ for k in np.arange(1,N):
     tt.add_row(vals=d2)
 tt.write("SUSS_variables_single.fits")
 
-"""                
-                             
-    return n_all,n_gaia, bad_obsid, good_obsids, results, source_results
-    
- # end post processing                               
-
- # end post processing                               
-
- # end post processing                               
-
-
-def update_cataloguefile(file2,badobsids):
-    """
-    This procedure is to update the catalogue by removing 
-    obsids in the three columns called OBSIDS, SRCNUMS, EPOCHS.
-    
-    """
-    from astropy.io import fits
-    
-    print (f"updating {file2}")
-    with fits.open(file2,"update") as f1:
-         o1in = f1[1].data['OBSIDS']
-         s1in = f1[1].data['SRCNUMS']
-         e1in = f1[1].data['EPOCHS']
-           # o1 is a list of obsids as a long string for each source 
-           # need to iterate over the sources 
-         for k1 in range(len(o1in)):  
-             o1 = o1in[k1].split("_")
-             s1 = s1in[k1].split("_")
-             e1 = e1in[k1].split("_")
-             
-             o3 = ""  # to fill with updated lists
-             s3 = ""
-             e3 = ""
-             
-             for o2, s2, e2 in zip(o1,s1,e1):
-                 # o2, s2, and e2 are strings
-                 ok = True
-                 for bk in badobsids:
-                     if (len(o2)>0):
-                         if (int(bk) == int(o2)): 
-                             ok = False
-                 if ok: 
-                    o3 += f"{o2:10}_"
-                    s3 += f"{s2}_"
-                    e3 += f"{e2:10}_"        
-             o1in[k1] = o3[:-1]       
-             s1in[k1] = s3[:-1]       
-             e1in[k1] = e3[:-1]       
-         #update f1 
-         f1[1].data['OBSIDS']  = o1in
-         f1[1].data['SRCNUMS'] = s1in
-         f1[1].data['EPOCHS']  = e1in
-
-    print (f"finished update")
-    """
+----
 
 fix for problem with IAUNAME missing by creating that from the filename file
 
@@ -3303,10 +3380,9 @@ In [165]: f.close()
               in_a_cloud.append(results[k])
     # result : in_a_cloud=[]     -- no sources inside a bright cloud     
           
-    """     
- 
 
-"""    
+---
+
 from astropy import coordinates as coord
 
 a = coord1[0][0].split('.')    
@@ -3318,57 +3394,5 @@ dec = f"{int(b[0][:-4]):02}:{b[0][-4:-2]}:{b[0][-2:]}.{b[1]}"
 pos = coord.SkyCoord(f"{ra} {dec}", unit=(u.hourangle, u.deg) )
 
  
- 
-"""    
 
-
-
-def fix_multiple_obsids_in_SUSS5(t,filt,chatter=0):
-    """
-    In SUSS5 for each OBSIDs all exposures should have been summed into one row. 
-    Unfortunately, for some sources there are two rows. Assuming that one row is the 
-    summed data, the other not, and discriminating on <filt>_AB_MAG_ERR we remove 
-    the lesser boy and return the corrected Table. 
-    
-    Requirement: input Table is for a single SRCNUM and FILTER filt. 
-    """
-    # check type t is Table...
-    t.sort('OBSID')
-    bad_rows = [] # list of bad row numbers
-    #row_a = t[0]
-    k1 = 0
-    kays = [0]
-    bad_rows = [-1]
-    for k in np.arange(1,len(t)):
-        row_a =  t[k1]
-        if chatter > 1: print (f"k = {k} , k1 = {k1}")
-        err_a = row_a[filt.upper()+'_AB_MAG_ERR']
-        row_b = t[k]
-        err_b = row_b[filt.upper()+'_AB_MAG_ERR']
-        if chatter > 1: print (f"{row_a['OBSID']} {row_b['OBSID']}  {err_a} {err_b}  ")
-        if row_a['OBSID'] == row_b['OBSID']:
-            # find the bad one (was: assume only pairs) 
-            kays.append(k)
-            if chatter > 1: print (f"SAME OBSIDS: ")
-            s1 = row_a[f'{filt.upper()}_AB_MAG_ERR'] < row_b[f'{filt.upper()}_AB_MAG_ERR'] 
-            if s1:
-               if bad_rows[-1] not in kays: #k-1:  # more than 2 in a row
-                  bad_rows.append(k1)
-            else:  # error row_b < err row_a
-               k1 = k
-               if bad_rows[-1] not in kays: 
-                  bad_rows.append(k)      
-            if chatter > 1: print (bad_rows)    
-        # reset
-        else:  # no OBSID match 
-           k1 = k 
-           kays = [k1]             
-    # now remove the bad rows
-    a = bad_rows.pop(0)
-    if chatter > 1 : print (f"BAD ROWS are:{bad_rows}")
-    if len(bad_rows) > 0:
-        if chatter > 0: print (f"2be removed {len(bad_rows)} erronous OBSIDs")
-        t.remove_rows(bad_rows)   
-    return t
-
-################# end 
+"""
