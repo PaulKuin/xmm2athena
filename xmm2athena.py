@@ -585,10 +585,6 @@ def run_catcorr(bad_obsmli_,good_obsmli_,bad_obsmli_dir,mingood=2,syserr=1.0,max
     # or write to a file, and use, e.g., execvpe() ut how to pass env? example needed
     
     
-def display_img(bad, badreg, good, goodreg):
-    # XMM SAS  stub
-    print ("\nTBD Display image\n")    
-    
 def fix_fitsimg(file):
     """
     XMM SAS 
@@ -668,6 +664,9 @@ def fix_good_(file,root='.'):
     f.flush()
     f.close()
     return root+'epiccat.fit'    
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
     
 def gaia_cat(root='.',o1=0,o2=10):
     """
@@ -804,203 +803,8 @@ def gaia_cat(root='.',o1=0,o2=10):
     #   note: these are the gaiadr3 matched sources
     # xmatch to gaiadr3, sdss9, sdss12, ps2, ...
               
-        ''' eDR3 version 
-           print (f"processing {obsid} pointing=({ra_},{dec_}) with epoch={obs_epoch} ...")
-           gin = groot3+"gaiaedr3_for_"+f"{obsid:010}"+f"_a.vot"
-   
-           coord = SkyCoord(ra=ra_,dec=dec_,unit=(u.degree,u.degree),frame='icrs')
-           j = Gaia.cone_search_async(coord, radius)
-           jr = j.get_results()
-           rep = jr['ref_epoch'][0]  # Problem here 
-           n = len(jr['ra'])
-           jr.add_column(jr['ra'], index=6, name=f"ra{gaia_epoch}" )   
-           jr.add_column(jr['dec'],index=9, name=f"dec{gaia_epoch}") 
-           
-           raq, decq = apply_proper_motion(jr['ra'], jr['dec'],rep, jr['pmra'],jr['pmdec'],obs_epoch)
-           q = np.isfinite(raq)
-           jr['ra'][q] = raq[q]
-           jr['dec'][q] = decq[q]
-           jr['ref_epoch'] += obs_epoch - rep 
-           
-           # update the epoch of ra,dec
-           jr.write(f"{gin}",format='votable',table_id=f"{obsid}",overwrite=True) 
-           print (f"wrote table {gin}")
-           
-              # match to SUSS using bash script
-           stemp = 'temp_'+f"{obsid:010}"+'.fits'  # SUSS 
-           omtemp = groot4+stemp
-           omfinal = groot4+"suss5.0_gaiaedr3_"+f"{obsid:010}"+".fits"
-           command = f"stilts_match_suss_gaia.sh "+f"{obsid:010}"
-           #command = f"stilts_suss_select_obsid.sh {obsid} '{omcat}#1' {omtemp} "
-           status = os.system(command)
-           print (status," -- ",command)      
-           #command = f"stilts_match_by_obsid.sh {omtemp} {gin}  {omfinal} "
-           #status = os.system(command)
-           #print (status," -- ",command)
-       '''
        
        
-       
-"""              this worked also to match the OBSID string to column:
-       obsid_short=int(obsid)
-       #extract the obsid data from SUSS
-       cmd = f"select matches(OBSID,padWithZeros({obsid_short},10))"
-       print (cmd)
-       command=f'stilts tpipe in={SUSS} out={suss_obsid_tmp.fit}  cmd={cmd}'  
-       print (command)     
-       status = os.system(command)
-       print (status)
-       go = False
-
-======
-
-groot = "/Users/data/catalogs/gaia_xmm/"
-obslist = "/Users/data/catalogs/gaia_xmm/suss5.0_obsids_pointing.fits"
-suss = "/Users/data/catalogs/"
-alias stilts = "java -jar /Users/kuin/bin/topcat-full.jar -stilts "
-
-fix the error in the renamed column labels:
- rename columns use something like:
-
-cd /Users/data/catalogs/gaia_xmm/
-a = os.listdir('/Users/data/catalogs/gaia_xmm/')
-for x in a:
-    os.system(f"cp {x} test.vot")
-    command=f"java -jar /Users/kuin/bin/topcat-full.jar -stilts tpipe in=test.vot"+\
-    f" cmd='colmeta -name RA2015.5  $8;colmeta -name DEC2015.5  $10' out=testout.vot"
-    os.system(command)
-    os.system(f"mv testout.vot {x}")
-
-from astropy.io.votable import parse_single_table, from_table, writeto
-from astropy.table import Table
-for x in a:
-    xout = x.split('.')[0]+"_a.vot"
-    t = parse_single_table(x) 
-    data = t.array
-    plx = data['parallax']
-    data['ra'][plx.mask] = data['RA2015.5'][plx.mask]
-    data['dec'][plx.mask] = data['DEC2015.5'][plx.mask]
-    tab = Table (data)
-    tab.rename_columns((tab.colnames[7],tab.colnames[9]),('RA2015.5','DEC2015.5'))
-    votable = from_table(tab)
-    writeto(votable,xout)
-    print (f"completed {xout}")
-    
-    
-========
-
-def make_suss_gaia():   # gaia-eDR3 code 
-    from astropy.io import fits, ascii as ioascii
-    from astropy.table import Table
-
-    groot1 = "/Users/data/catalogs/gaia_xmm/"    # temp products in adir, matched, archive
-       # in archive are the by-obsid extractions of gaia eDR3 with PM corrections to the XMM epoch
-       # in adir these have been corrected for sources with no plx/PM 
-       # in matched we want to output from matching for each obsid of XMM-OM and Gaia from adir
-    groot2 =  "/Users/data/catalogs/suss_gaia_epic/"  # catalog products
-    groot3 =  groot1+"adir/"
-    groot4 =  groot1+"matched/"
-    obslist = "/Users/data/catalogs/suss_gaia_epic/suss5.0_obsids_pointing.fits" #list of OBSIDs
-    omcat = "/Users/data/catalogs/suss_gaia_epic/XMM-OM-SUSS5.0.fits"
-    stilts = f"java -jar /Users/kuin/bin/topcat-full.jar -stilts "
-    
-    f = fits.open(obslist)
-    #f.info()
-    obs = f['SUMMARY'].data["OBSID"] # named array
-    f.close()
-    
-    doall = False
-    
-    if doall:
-       f = fits.open(omcat)
-
-    for o in obs:
-        stemp = 'temp_'+o+'.fits'  # SUSS 
-     if doall:  
-          q = f[1].data["OBSID"] == o
-
-          t = Table(f[1].data[q])
-          t.keep_columns(["IAUNAME","N_SUMMARY","OBSID","SRCNUM","RA","DEC",])
-          stemp = 'temp_'+o+'.fits'  # SUSS 
-          gtemp = groot+"gaiaedr3_for_"+o+".vot"
-          mout = groot+"suss_gaia_match_"+o+".vot"
-          mfinal = groot+
-          t.write(stemp)
-          command = "{stilts} tmatch2 in1="+stemp+" in2="+gtemp+"  out="+mout+\
-           ' matcher=sky values1="RA/deg DEC/deg" values2="ra dec" '+\
-           ' params=1.0 find=best1 '
-
-        gin = groot3+"gaiaedr3_for_"+o+"_a.vot"
-        stemp = 'temp_'+o+'.fits'  # SUSS 
-        omtemp = groot4+stemp
-        omfinal = groot4+"suss5.0_gaiaedr3_"+o+".fits"
-
-        shortobsid = np.int(o)
-        command = f"SHORTOBSID=`echo {shortobsid} | bc`; "+f"{stilts} tpipe in="+omcat+"#1  out="+omtemp+" cmd=\'"+\
-          "select matches(OBSID,padWithZeros('${SHORTOBSID}',10))';echo $SHORTOBSID"
-        status = os.system(command)
-        print (status," -- ",command)
-      
-      #stilts tmatch2 in1=suss_0000110101.fits in2=gaiaedr3_for_0000110101_a.vot \
-      # out=suss5.0_gaiaedr3_0000110101.fits  matcher=sky values1="RA DEC" values2="ra dec" params=1.0 find=best1
-        command = "{stilts} tmatch2 in1="+omtemp+" in2="+gin+"  out="+omfinal+\
-           ' matcher=sky values1="RA DEC" values2="ra dec" params=1.0 find=best1 '
-        status = os.system(command)
-        print (status," -- ",command)
-========== 
- alternatively
- 
- for o in obs[100:3000]:
-    ...:     os.system(f"stilts_match_suss_gaia.sh {o}")
-
-   
-    for o in obs[:10]:
-      gin = groot3+"gaiaedr3_for_"+o+"_a.vot"
-      stemp = 'temp_'+o+'.fits'  # SUSS 
-      omtemp = groot4+stemp
-      omfinal = groot4+"suss5.0_gaiaedr3_"+o+".fits"
-      command = f"stilts_suss_select_obsid.sh {o} '{omcat}#1' {omtemp} "
-      status = os.system(command)
-      print (status," -- ",command)      
-      command = f"stilts_match_by_obsid.sh {omtemp} {gin}  {omfinal} "
-      status = os.system(command)
-      print (status," -- ",command)
-       
-     
-=============       
-       
-    query = "SELECT gaia_source.ra,gaia_source.ra_error,"\
-    "gaia_source.dec,gaia_source.dec_error,gaia_source.pmra,gaia_source.pmra_error,"\
-    "gaia_source.pmdec,gaia_source.pmdec_error,"\
-    "gaia_source.phot_g_mean_mag,gaia_source.phot_bp_mean_mag,gaia_source.bp_rp,"\ 
-    "DISTANCE(POINT(ra_pnt,dec_pnt), POINT(ra,dec) ) AS ang_sep"\
-    "FROM gaiaedr3.gaia_source "\
-    "WHERE  1 = CONTAINS( POINT( ra_pnt, dec_pnt), CIRCLE(ra, dec, 17./60. )) "\
-    "ORDER BY ang_sep",
-    job = Gaia.launch_job_async( query, dump_to_file=True, 
-        output_file=f"gaia_edr3_for_{obsid}_{ra_pnt}_{dec_pnt}.vot", 
-    output_format='votable')
-    
-    res = job.get_results()
-    
-    #file = decompress_ftz(file)
-    f = fits.open(output_file)
-    t = Table(f['SRCLIST'].data)
-    ra = t['RA_CORR']
-    ra.name = 'CAT_RA'
-    de = t['DEC_CORR']
-    de.name='CAT_DEC'
-    err = t['RADEC_ERR']
-    err.name='CAT_RADEC_ERR'
-    tt = Table([ra,de,err])
-    tt.write(output=root+'epiccat.fit',format='fits',overwrite=True)
-    f.close()
-    f = fits.open(root+'epiccat.fit',mode='update')
-    f[1].header['EXTNAME']='GAIAeDR3'
-    f.flush()
-    f.close()
-    return root+'epiccat.fit'    
-"""
     
 def pnt_from_obsid(obsid=None, obsidlist='/users/data/catalogs/suss_gaia_epic/4xmmdr11_obslist.fit'):
     """
@@ -1203,583 +1007,6 @@ def fix_corruped(table,fill=None,nozeros=True):
     return table      
  
     
-''' process the catalogs -- notes 
-
-   Processing : locating the high proper motion sources by matching with Gaia eDR3
-
-
-%load_ext autoreload
-autoreload 2
-
-You might also find the Table hstack() function useful. This will let you add 
-all the columns of one table into another table. 
-
-  https://docs.astropy.org/en/stable/table/operations.html#id6
-
-In your case this might look like:
-
-from astropy.table import hstack
-tab = hstack([tab, c1])
-
-note: way too slow!
-   
-   # writing to a FITS table : Column definitions 
-   cols = summary.columns
-   c1 = fits.Column(name='TDB_MINUS_TT', array=col_tdb_minus,unit='s', format='E')
-   c2 =  ioascii.read('/data/catalogs/suss5.0_summary_col_tdb_minus_tt.dat')
-   cols.add_col(c2['col_tdb_minus'])
-   
-   # make a new fits bintable extension after reading in the ascii table and 
-   # defining the columns in cols, the data are in tab (TBD)
-
-note: getting the Gaia EDR3 with high PM (full sky)
-
-SELECT TOP 12001000 gaia_source.source_id,gaia_source.ra,gaia_source.ra_error,gaia_source.dec,
-gaia_source.dec_error,gaia_source.parallax,gaia_source.parallax_over_error,gaia_source.pm,
-gaia_source.pmra,gaia_source.pmra_error,gaia_source.pmdec,gaia_source.pmdec_error,
-gaia_source.ruwe,gaia_source.phot_g_mean_flux,gaia_source.phot_g_mean_flux_over_error,
-gaia_source.phot_g_mean_mag,gaia_source.phot_bp_mean_flux_over_error,
-gaia_source.phot_bp_mean_mag,gaia_source.phot_rp_mean_flux_over_error,
-gaia_source.phot_rp_mean_mag,gaia_source.bp_rp,gaia_source.dr2_radial_velocity,
-gaia_source.dr2_radial_velocity_error,gaia_source.l,gaia_source.b
-FROM gaiaedr3.gaia_source 
-WHERE (gaiaedr3.gaia_source.pm>=25)
-
-===
-
-14 June 2022 https://gea.esac.esa.int/archive/ log in 
-gaiadr3 from lite catalogue all sources with PM>25
-
-SELECT TOP 30000000 * FROM gaiadr3.gaia_source_lite
-WHERE (gaiadr3.gaia_source_lite.pmra*gaiadr3.gaia_source_lite.pmra+gaiadr3.gaia_source_lite.pmdec*gaiadr3.gaia_source_lite.pmdec) > 625
-
-=> gaiadr3_highpm
-===
-
-2 Mar 2023 https://gea.esac.esa.int/archive/ log in 
-
-:retrieve all gaia with PM > 2mas/yr Epoch 2016, for matching our source to gaiadr3 ID. 
-
-SELECT TOP 30100100 gaia_source.designation,gaia_source.source_id,gaia_source.ra,
-gaia_source.ra_error,gaia_source.dec,gaia_source.dec_error,gaia_source.parallax,
-gaia_source.parallax_over_error,gaia_source.pm,gaia_source.pmra,gaia_source.pmra_error,
-gaia_source.pmdec,gaia_source.pmdec_error FROM gaiadr3.gaia_source WHERE (gaiadr3.gaia_source.pm>=10.0)
-
-=> gaiadr3_pmgt2
-
-==== from notebook 1
-28 june 23
-
-New match of the new SUSS single source result V2 which was rematched to the previous 
-version match in order to keep the better Gaia match from the Xmatch site.   
-(TBD file name used)XMMOM_SUSS5.0_Sources_v0_1xGaiaDR3.fits
-(2)XMM-OM-SUSS5.0_singlerecs_v2.fits
-(3)XMMOM_highpm_probaAB_gt_half.fits
-
-The reason to do it again is that the initial match of the high PM sources came back with 
-Gaia source_ids. 
-When I added further Gaia DR3 columns to the whole SUSS, I used a match on position, but
-some pf the high PM sources were then mismatched to another source. So first we split off 
-the high PM sources, and match them using the Gaia source_id. However, we need to choose 
-how to do that. We have the downloaded subset of Gaia DR3 with pm > 10, but that has 
-not all the required columns. The other way is to match using TAP on the whole 
-gaiadr3.gaia_source catalogue.
-
-Using TopCat we split  XMM-OM-SUSS5.0_singlerecs_v2xhighpm_probabGThalf.fits into 
-(1) temp_pm_sources.fits (66,557 sources)  
-(2) temp_nopm_sources.fits (5,896,514 sources)
-
-match (1) using TAP on gaiadr3.gaia_source : 
-====
-26 June 2023 NPMK
-
-New version April-June 2023
-
-- new code for SUSS6 produced to add proper motion effects (sent to Simon)
-[ a] match2gaiadr3_positions2Epoch
-[ b] addEpoch2Source.sh (previously developed for this project)
-The code works by sorting the input first for observations done 
-within a range of Epochs (typically 0.1 year); then matching the 
-selected subset to Gaia DR3 sources with PM > 25 mas/year which 
-were placed on the relevant Epoch. Matching is done using STILTS.
- 
-This is more efficient but less accurate then the method used for this project 
-using the Xmatch website, but that requires uploading and downloading the data.
-Xmatch advantage is the consideration of how crowded the field is on the 
-possibility of mis-match. 
-
-- software to produce the single-source catalogue in two steps, 
-   - match sources based on their IAUNAME
-   - match results on PM, and plx_over_error being the same
-   
-The software was changed to derive new statistics, namely chi-squared, skew. 
-Also, two fields were added capturing OBSIDS and Epochs of the input. 
-The latter two are the same nearby objects unless at the edge of an observation. 
-The magnitude is now the median value, while the extreme is the minimum magnitude 
-in the input, so maximum flux. 
-
-The single source processing thus produces two files, one with significant PM and 
-one where the objects are not reported in Gaia DR3 as having PM>25 mas/yr. Only the 
-first set has a Gaia DR3 source_id match. 
-
-- In the single source catalogue there are sources with plx < 0 or with large 
-positional uncertainties. Examination of the histograms of these data with separation 
-of source and Gaia DR3 match showed requiring plx > 0 is consistent with the 
-expected drop off of the number of matches with separation, while the excluded 
-set with plx < 0 did not fall off with separation. 
-[positional errors? ]
-
-The matched sources with plx>0 are considered to be of higher quality.
-
-==== 
-30 Jun 2023 TopCat 
-
-part1: match only pmcat.gaiadr3_source_id from TAP_UPLOAD (temp_pm_sources.fits)
-
-SELECT pmcat.*, refcat.source_id, 
-refcat.pm,refcat.parallax_over_error,
-refcat.phot_g_mean_flux_over_error,
-refcat.phot_g_mean_mag,
-refcat.phot_bp_mean_flux_over_error,
-refcat.phot_bp_mean_mag,
-refcat.phot_rp_mean_flux_over_error,
-refcat.phot_rp_mean_mag,
-refcat.bp_rp,
-refcat.bp_g,
-refcat.g_rp,
-refcat.radial_velocity,
-refcat.radial_velocity_error,
-refcat.phot_variable_flag,
-refcat.classprob_dsc_combmod_galaxy,
-refcat.classprob_dsc_combmod_quasar,
-refcat.classprob_dsc_combmod_star,
-refcat.non_single_star
-FROM gaiadr3.gaia_source AS refcat
-RIGHT OUTER JOIN TAP_UPLOAD.t5 AS pmcat
-ON refcat.source_id=pmcat.gaiadr3_source_id
-
-
-This works only if using the source_id in the upload temp_pm_sources.fits. 
-Afterwards, match locally with the full input temp_pm_sources using Topcat
-XMMOM_SUSS5.0_SourcesV2part1.fits => 66,557 sources
-
-*** NEXT part2: the sources with no PM match. 
-
-unfortunately, for matching this with position error is not possible (I would 
-need a local copy of Gaia DR3 for STILTS)
-
-So I did a TopCat match CDSxmatch on position 'best' with radius 0.9 arcsec for 
-temp_nopm_sources.fits with gaiadr3; only keep columns like part1 above. 
-
-
-Further selection is needed: some of the sources in the high PM set (1) are likely 
-not good matches. After plotting the histograms it became clear that selecting 
-on the parallax_over_error also removed sources with bad positional match:
--- Keep only those with parallax_over_error > 0 which removes 
-
-There remain now some sources with not any Gaia DR3 match 
-5,896,514 in temp_nopm_sources.fits, and 4,534,565 matches in XMMOM_SUSS5.0_SourcesV2part2.fits, so 
-4,534,565
---------- -
-1,361,949 sources do _not_ have a match in GaiaDR3 within 1.5 arcsec.  
-
-Proposed pmflag:
-pmflag : 1 for all matches in part1 with parallax_ovser_error > 3 based on position error per object
-         2 for matched in part1 otherwise ; also based on position error per object
-         3 for part2 with match parallax_over_error > 3 with position within 1.5 arcsec 
-         4 for part2 otherwise with position within 1.5 arcsec
-         5 for no Gaia DR3 match found within 1.5 arcsec 
-         
-         
-merging  to  XMMOM_SUSS5.0_SourcesV2part1+2   (5,963,071 sources)     
-=====
-reporting July 5, 2023 
-
-starting with (3) suss_gaia_epic/XMMOM_SUSS5.0_Sources_v2part1+2.fits:
-
-I added a new column 'chi2red' defined as 
-
-median([UVW2_CHISQ/UVW2_NOBS , UVM2_CHISQ/UVM2_NOBS, UVW1_CHISQ/UVW1_NOBS. U_CHISQ/U_NOBS, B_CHISQ/B_NOBS, V_CHISQ/V_NOBS])
-
-This distribution as a log(chi2red peaks at a value of around 0.5. I define therefore a subset with 
-possibly variability of interest as chi2red > 2, which has 214,229 rows/sources, that is 4% of all sources. 
-I save this as
- (4) suss_gaia_epic/source_v2_chi2redGT2.fits
-
-****** After discussion with Mat, he thinks that we should select on the extreme value of the reduce ChiSq. 
-
-****** On hindsight (July 18) I think we need to select also those with the higher number of observations in anyone of the filters, 
-       because doing more (automated) analysis with, e.g., wavelets or power spectrum needs a decent number of points to fit. 
-
-changed definition to chisq/(N-1)
-
-Next I use TopCat match (4) to (5) XMM_SUSS5.0_Sources_v0_1_traininginput_v2.fits using 
-IUANAME then omitting from the result  *var*, colours, columns, and leave the merged 
-magnitudes per colour. The result is then matched to 
-(6) XMMOM_SUSS5.0_Sources_v0_1_classifications.fits  which adds the classifications to the 
-result being: (7) source_v2_chi2redGT2_aux_class.fits (214,211 sources)
-
-The result was finally matched by J2000,Epoch 2000 positions (1.0" radius) to SIMBAD using TopCat 
--> (8) source_v2_chi2redGT2_aux_class_SIMBAD.fits  (14,963 rows) 
-
-    #     NOBS(max)
-w2  5051  36
-m2  5902  38
-w1 11336  59
-u   7951  67
-b   4663  41
-v   4226  58
-
-The non-SIMBAD has longer NOBS series
-
-Notice that we did not rerun the classification at this time. The main change is in the calculation
-of Chi-Squareds. 
-
-July 18, updated these notes. 
-
-In the past week we selected some sources to investigate how their data supposted the chi-squared indication
-of variability. One source showed a clearly decreasing flux over the years, with the data also 
-spread fairly wide around the trend. Other sources showed large changes in flux without a clear 
-trend. The issue is partly that the data have been taken in a rather random way over time. 
-
-The examination was rather time consuming using TopCat since the source information in (8) was used 
-on the original SUSS5.0+Epoch. I wrote a program that prepares a fits file that combines 
-all for one source: 
-make_for_many_variable(pos=None, poserr=None, iauname=None, recnums=[0,5], chatter=1)
-
-
-
-   '''
-"""   
-# obsolete because does not work (matches whole exposures):
-
-# 11000 last one done -12000-13000 yellow 14000-16000 white now
-def make_for_many_variable(pos=None, poserr=None, iauname=None, recnums=[], chatter=1):
-    
-    given the single source catalogue selection of vaiable sources, this will 
-    create a fits file with just the SUSS observations of a given source.
-    
-    Note that the iauname has a single space in it before the 'J'
-    
-    position input 'pos' must be as an astropy coordinate object
-    
-    recnum will pull the source of the 'recnum' record after sorting on IAUNAME
-    
-    output file name is based on iauname, the class from our classification, and number
-    of UV+u records.
-    
-    For each filter another extension, and add MJD. 
-    
-    fecit npmk june 2023 
-    
-
-    from astropy import coordinates, units as u, constants as c
-    import numpy as np
-    from astropy.io import fits
-    from astropy.table import Table, vstack
-
-    indir = '/Users/data/catalogs/suss_gaia_epic/'
-    suss = 'XMM-OM-SUSS5.0ep.fits'
-    varfile = 'source_v2_chi2redGT2_aux_class_SIMBAD.fits' # 14,963 rows 
-    fsuss = fits.open(indir+suss)
-    fvars = fits.open(indir+varfile)
-    t = Table(fsuss[1].data)
-    v = Table(fvars[1].data)
-    v.sort('IAUNAME')
-    v.add_index('IAUNAME')
-    print (f"the total number of sources is now {len(v)}")
-
-    for recnum in range(recnums[0],recnums[1]):
-        
-        # what to look for
-        if iauname != None: 
-           recnum = v['IAUNAME'] == iauname
-    
-        if pos != None:
-           ra = pos.ra.deg
-           dec = pos.dec.deg
-       # NEED recnum from match to v   
-       
-        if pos == None and iauname == None:
-            if recnum < 0:
-                raise IOError("give position pos(astropy.coordinates) or iauname as input")
-            
-        # new: select records based on OBSIDS, EPOCHS in v => get all sources in image
-        rec = v[recnum]
-        t.sort('OBSID')
-    
-        ob = rec['OBSIDS'].split('_')
-        ep = rec['EPOCHS'].split('_')  
-        # remove duplicates
-        epstr = []
-        for o9,e9 in zip(ob,ep): epstr.append( f"{o9}{e9[:10]}" )
-        uniobep = np.unique(epstr)
-        ob = []
-        ep = []
-        for o9e9 in uniobep:
-            ob.append( o9e9[:10] )
-            ep.append( np.array(o9e9[10:],dtype=float) )
-        # locate records in SUSS    
-        qq = []  # list of matches    
-        for ob1, ep1 in zip(ob,ep):
-             ts = t['OBSID'] == ob1  # boolean list
-             tee = np.abs(t['obs_epoch'] - np.float(ep1)) < 3e-5 # bool sub-list
-             qq.append(ts & tee)      
-        # select records SUSS for that image ; next find the right source
-        t1s = [ ]
-        for k in np.arange(len(qq)):
-            t1s.append(t[qq[k]])
-        t2 = vstack(t1s)          
-       
-        # position desired source: 
-        acheck = np.isnan(rec['pm'])   
-        if acheck | (rec['pm'] < 43):
-            poserr = 1.5/3600.
-            if not acheck: poserr = (1.5 + rec['pm']*0.03)/3600.
-            # define Epoch 2000 position of source        
-            ra  = rec['RAJ2000Ep2000']
-            dec = rec['DecJ2000Ep2000']
-            pos = coordinates.SkyCoord(ra,dec,unit=(u.deg,u.deg),frame='icrs')
-            dra = np.abs(t2['RA']-pos.ra.deg) < poserr
-            dde = np.abs(t2['DEC']-pos.dec.deg) < poserr
-            t1 = t2[dra & dde]
-        else:    
-            poserr = 1.8/3600. 
-            # need to precess to the epochs of observation
-            ra  =  rec['RAJ2000Ep2000']
-            dec =  rec['DecJ2000Ep2000']
-            pmra = rec['pm']  *0.5 # need ['pmra'] in v catalogue
-            pmde = rec['pm']  *0.5 # need ['pmde']
-            ra_epoch=[]
-            dec_epoch=[]
-            t1s = []
-            for obsep in t2['obs_epoch']:  # for each star
-                ra9, dec9 = apply_proper_motion(ra,dec,2000.0,pmra,pmde, obsep )
-                dra = np.abs(t2['RA'] -ra9) < poserr
-                dde = np.abs(t2['DEC']-dec9) < poserr
-                if (dra&dde).sum() > 0:
-                    t1s.append(t2[dra & dde])
-            t1 = vstack(t1s)    
-
-#  write output file
-               
-        nobs = rec['UVW2_NOBS']+rec['UVM2_NOBS']+rec['UVW1_NOBS']+rec['U_NOBS']
-        class1 = rec['class_prediction']
-        name = rec['IAUNAME'].replace(" ","_")   # replace space with underscore
-        outfilename=indir+f"../var/var_{name}_{class1}_{int(nobs)}."
-    
-        if chatter > 0: print (recnum, outfilename)
-    
-        hdu = fits.PrimaryHDU()
-        hdulist = fits.HDUList(hdu)
-        hdulist[0].header['COMMENT']="observations of a single source from XMM-OM SUSS"
-    
-        # create bintable HDU from records 
-        hdu1 = fits.BinTableHDU( t1, name=rec['IAUNAME'])
-        hdu1.header['iauname'] = rec['IAUNAME']
-        hdu1.header['RA']      = (rec['RAJ2000Ep2000'],'J2000ep2000')
-        hdu1.header['Dec']     = (rec['DecJ2000Ep2000'],'J2000ep2000')
-        hdu1.header['class']   = (rec['class_prediction'],'predicted class')
-        if np.isfinite(rec['chi2red']): hdu1.header['chi2red'] = (rec['chi2red'],'reduced chi-squared, median from six filters')
-        hdu1.header['main_id'] = (rec['main_id'],'SIMBAD')
-        hdu1.header['maintype'] = (rec['main_type'],'SIMBAD')
-        if np.isfinite(rec['redshift']): hdu1.header['redshift'] = rec['redshift']
-        hdu1.header['sp_type'] = rec['sp_type']
-        hdu1.header['w2_nobs'] = rec['UVW2_NOBS']
-        hdu1.header['m2_nobs'] = rec['UVM2_NOBS']
-        hdu1.header['w1_nobs'] = rec['UVW1_NOBS']
-        hdu1.header['u_nobs']  = rec['U_NOBS']
-        if np.isfinite(rec['UVW2_AB_MAG']): hdu1.header['w2_abmag'] = (rec['UVW2_AB_MAG'],'median mag')
-        if np.isfinite(rec['UVM2_AB_MAG']): hdu1.header['m2_abmag'] = (rec['UVM2_AB_MAG'],'median mag')
-        if np.isfinite(rec['UVW1_AB_MAG']): hdu1.header['w1_abmag'] = (rec['UVW1_AB_MAG'],'median mag') 
-        if np.isfinite(rec['U_AB_MAG']): hdu1.header['u_abmag'] = (rec['U_AB_MAG'],'median mag')
-        if np.isfinite(rec['Gmag_gaia']): hdu1.header['Gmag']    = (rec['Gmag_gaia'],'Gaia DR3 Gmag')
-        if np.isfinite(rec['pm']): hdu1.header['PM'] = (rec['pm'], 'Gaia DR3 proper motion mas/yr')
-        hdulist.append(hdu1)
-    
-        # create extension with variable single source record ? SOURCE_INFO
-        hdu2 = fits.BinTableHDU(Table(rec),name="varinfo")
-        hdulist.append(hdu2)
-        # create extension for each filter: e.g., LC_UU (filter names W2,M2,W1,UU,VV,BB)
-    
-        hdulist.writeto(outfilename+'fits', overwrite=True)
-        
-        
-   December 5, 2023
-   
-I matched the subset which has gaiadr3_source_id values to the Gaia DR3 lite catalogue 
-in order to retrieve the lost columns for Gaia magnitude & colours Gmag, G-BP, G-RP, BP-RP
-Previously, the rows of V3/XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2_srcnum.fits
-with gaiadr3_source_id > 0 were selected for the input file (UPLOAD.t1):
-        
-SELECT * 
-   FROM TAP_UPLOAD.t1 INNER JOIN gaiadr3.gaia_source_lite 
-   ON TAP_UPLOAD.t1.gaiadr3_source_id = gaiadr3.gaia_source_lite.source_id    
-   
-This used the TAP Query interface in TopCat with ivo://esavo/gaia/tap  on table 
-gaiadr3.gaiasource_lite.    
-
-The other rows, i.e., with no gaiadr3 source id were saved. 66557 sources had match with PM
-correction. Now the other 5 896 493 sources. Match to Gaia DR3 2016 using positions (RA,DEC) 
-from SUSS using the CDS interface I/355/gaiadr3
-
-three parts
-gaia_tmp3b  source with PM  - match by gaiadr3 source id
-gaia_tmp4b  source in Gaia, small PM  - match by position (ra,dec) best within 1.0"
-gaia_tmp5b  source not in Gaia 
-
-after merging and renaming the files: 
-
--rw-r--r--  1 kuin  staff    362989440 Dec  5 18:45 XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part1.fits
-66,577 sources with PM > 25 mas/yr
--rw-r--r--  1 kuin  staff  22573393920 Dec  5 18:51 XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part2.fits
-4,149,511 sources with PM < 25 mas/yr and no match to Gaia DR3 with angDist < 1 arcsec
--rw-r--r--  1 kuin  staff   9402304320 Dec  5 21:36 XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part3.fits
--rw-r--r--  1 kuin  staff  32516568000 Dec  6 00:09 XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b.fits
-
-Problems found with SUSS5.0 
-
-1. some srcnum contain two entries for the same sources, e.g., 2429739 what is that? 
-   single image , summed image ? the magnitudes are different 
-   origin is the SUSS5.0 
-   
-   wrote script to make sure in light curve just a single time/mag per OBSID.
-   
-2. rudy-5 or summed image issue ? 
-   in:XMMOMV2_J004210.09411529.3_qso_uvw1_n72.fits OBSID:0202230301 srcnum:112546 
-   and many more in that file
-   
-   no, also here two clusters in RA,DEC -- both variable, but at different mean mag.
-   
-3. angular distance for match SUSS5 to Gaia DR3
-
-2024-01-23 
-
-Need for matching SUSS within more than 1" to Gaia DR3. Mat pointed out that 
-there is a possibility that for the bright stars the OM positions are not as accurate as
-1 arcsec. So I match the part3 file mentioned above to Gaia DR3 within 3.0".  It looks 
-like there are good matches up to 2.0 arcsec, after which we may pick up some bad ones. 
-
-XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part3A ... .fits has 476,795 sources 
-that match with a Gaia source to within 3 arcsec angDist 
-XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part3B ... .fits has 1,270,007 
-sources that can find no match to Gaia within 3". 
-
-
-2024-02-06 
-
-Classification rework. 
-
-Selected a new set of 30 input parameters. Better result. Mat came up with an expression 
-for differencing Gaia G mag to ground-based magnituds with sensitivity to the spatial 
-extent of a source. It starts with a filter. 
-
-gaia_extended =  ((BII>10.0)||(BII<-10.0))&&(gmag_M<19.0)&&!(gaiadr3_ra<500.0) ? 
-  (20.0-gmag_M) : ((gmag_M > 0.0) ? (gaia_Gmag-gmag_M) : (gaia_Gmag-V_AB_MAG))
-
-where BII is the galactic lattitude.  
-
-
-The claxbol software (classify_new.py) when running the optimisation needs to be 
-interrupted (CNTL-C) which leads to incomplete classifications file. 
-Also, the API has been updated requiring replacement of product() with prod(). 
-
-Priors: The selection for the priors has been done by crossmatching with SIMBAD, and then
-determining the proportion of stars, and non-stars, being 69% and 31%. SIMBAD selection 
-of QSOs and galaxies then gives 6% for QSOs and 25% for galaxies. 
-In version 0.1 of the classification, we used as priors [0.65,10,25]% and got as a
-result proportions for stars, QSO, galaxies = [0.78,0.04,0.18]. 
-Alternatively, using the proportions of QSO and galaxies from SDSS16 which are the 
-training set, we would get [0.69, 0.13, 0.18]. 
-Since there is uncertainty in the proportions of stars, QSO, and galaxies, a range of 
-values for the priors have been explored. 
-
-2024-02-22 Do a rerun with only quality_flag == 1 data for variable sources catalogue
-
-make_file_variable (onlyqualzero=True)
-
-2024-05-21 and later
-
-Need to redo the earlier classification with gaia_Gmag - WISE-W1 and gaia_extended, 
-using gaiadr3_source_id>0  instead of gaiadr3_ra< 500. 
-
-Also create 
-
-  Gaia_G_WISE_W1=((BII>10.0)||(BII<-10.0))&&
-  (WI_W1mag<16.0)&&
-  !(gaiadr3_ra>0)?(20.0-WI_W1mag):(Gaia_Gmag<15.6)&&
-  !(WI_W1mag>0.0)?(Gaia_Gmag-17.1):(gaia_Gmag-WI_W1mag)
-  
-    Gaia_G_WISE_W1=((BII>10.0)||(BII<-10.0))&&(WI_W1mag<16.0)&&!(gaiadr3_ra>0)?(20.0-WI_W1mag):(Gaia_Gmag<15.6)&&!(WI_W1mag>0.0)?(Gaia_Gmag-17.1):(gaia_Gmag-WI_W1mag)
-
-and thus, 
-
-  gaia_extended =  ((BII>10.0)||(BII<-10.0))&&
-  (gmag_M<19.0)&&
-  !(gaiadr3_ra>0)?(20.0-gmag_M):((gmag_M>0.0)?(gaia_Gmag-gmag_M):(gaia_Gmag-V_AB_MAG))
-
-   gaia_extended=  ((BII>10.0)||(BII<-10.0))&&(gmag_M<19.0)&&!(gaiadr3_ra>0)?(20.0-gmag_M):((gmag_M>0.0)?(gaia_Gmag-gmag_M):(gaia_Gmag-V_AB_MAG))
-
-where BII is the galactic lattitude.  gaiadr3_ra is being used, since there are some 
-Gaia sources with an source_is but without any photometry. 
-
-Starting now once more from 
-   XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b.fits (Jan 24, 2024)
-   
-create new input for classification in htranin directory
-    XMMOM_SUSS5.0_Sources_4claxbol_v6.csv
-    XMMOM_SUSS5.0_Sources_4claxbol_v6.in   
-classification is found in classificationcode/
--rw-r--r--  1 kuin  staff         288  5 Jun 14:50 classification_set_v6.metrics
--rw-r--r--  1 kuin  staff  1592182757  5 Jun 14:50 classification_set_v6.csv
-
-merged clssification_set_v6 [IAUNAME] to subset of XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b.fits
-(not VAR3, OBSID, SRCNAM, SRCDIST, SIGNIF, FLUX), and thus retains some basic aux/gaia data.
-this gave a catalogue in directory v3:
-====>
-   XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6.fits
-The classification report based on the input classification sets remains virtually 
-the same as before, but due to including upper limits which are needed since 
-the Gaia Gmag only goes down to ~19.5 magnitudes, and making that update for 
-sources outside the Galactic plane, we find now some previously classified as stars 
-are being better represented as QSO or galaxy class. 
-   
-   star          QSO        galaxy
-A : NpC0=3809450, NpC1=516515, NpC2=1637085
-   previously (no upper limits)
-B : NpC0=4136491, NpC1=370822, NpC2=1455737  
-
-The ratio's of change are star:0.92, QSO:1.39, galaxy:1.12
-and the relative fractions are stars:0.639, QSO:0.087, galaxy:0.274
-
-And this show a dramatic increase in QSO's. We therefore now test against 
-external catalogues as before using the SIMBAD object types. 
-  in TopCat x SIMBAD and the catalogue match ra,dec J2000, ep2000, delta_r=2.5 arcsec. 
-  -> 239,227 rows
-  write to 
-  /Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6xSIMBAD.fits
- 
-If we treat the SIMBAD main_type=Star,QSO,Galaxy as truth, we get the following
-matrix
-
-true->	        	star	QSO		galaxy	retrieved 
-predicted star		83003	268		4173	89.3%
-predicted QSO		6282	6404	1076	94.4%
-predicted galaxy	3479	109		12817	70.9%
-TruePos.Rate		94.8%	46.5%	78%
-
-The low t.p.r. for QSOs is due to the large number of misclassified stars.
-Indeed, 2118 have a parallax in SIMBAD/Gaia. Also, we took the training sets 
-from the SDSS which is partly in SIMBAD, so this is a bit biased, but, for 
-example, for true star, predicted QSO, and not in training set, we get 6278
-sources, only 7 less than in the table above. 
-We need to discriminate between stars and QSO better. 
-The outlier histogram for this set as compared to the full catalogue shows 
- a different shape. Whereas the full catalogue has outlier peak around 9, 
- this set is flattish between 8 and 19, so there is a poor match to the class.
- Restricting outlier to < 15 leaves still 4626 misclassified sources. 
-
-"""
 
 def make_file_variable( band=band, minnumber=minnumber, maxnumber=1000, 
          chi2_red_min=chi2_red_min, 
@@ -3393,6 +2620,743 @@ dec = f"{int(b[0][:-4]):02}:{b[0][-4:-2]}:{b[0][-2:]}.{b[1]}"
 
 pos = coord.SkyCoord(f"{ra} {dec}", unit=(u.hourangle, u.deg) )
 
+---
+
+       this worked also to match the OBSID string to column:
+       obsid_short=int(obsid)
+       #extract the obsid data from SUSS
+       cmd = f"select matches(OBSID,padWithZeros({obsid_short},10))"
+       print (cmd)
+       command=f'stilts tpipe in={SUSS} out={suss_obsid_tmp.fit}  cmd={cmd}'  
+       print (command)     
+       status = os.system(command)
+       print (status)
+       go = False
+
+======
+
+groot = "/Users/data/catalogs/gaia_xmm/"
+obslist = "/Users/data/catalogs/gaia_xmm/suss5.0_obsids_pointing.fits"
+suss = "/Users/data/catalogs/"
+alias stilts = "java -jar /Users/kuin/bin/topcat-full.jar -stilts "
+
+fix the error in the renamed column labels:
+ rename columns use something like:
+
+cd /Users/data/catalogs/gaia_xmm/
+a = os.listdir('/Users/data/catalogs/gaia_xmm/')
+for x in a:
+    os.system(f"cp {x} test.vot")
+    command=f"java -jar /Users/kuin/bin/topcat-full.jar -stilts tpipe in=test.vot"+\
+    f" cmd='colmeta -name RA2015.5  $8;colmeta -name DEC2015.5  $10' out=testout.vot"
+    os.system(command)
+    os.system(f"mv testout.vot {x}")
+
+from astropy.io.votable import parse_single_table, from_table, writeto
+from astropy.table import Table
+for x in a:
+    xout = x.split('.')[0]+"_a.vot"
+    t = parse_single_table(x) 
+    data = t.array
+    plx = data['parallax']
+    data['ra'][plx.mask] = data['RA2015.5'][plx.mask]
+    data['dec'][plx.mask] = data['DEC2015.5'][plx.mask]
+    tab = Table (data)
+    tab.rename_columns((tab.colnames[7],tab.colnames[9]),('RA2015.5','DEC2015.5'))
+    votable = from_table(tab)
+    writeto(votable,xout)
+    print (f"completed {xout}")
+    
+    
+========
+
+def make_suss_gaia():   # gaia-eDR3 code 
+    from astropy.io import fits, ascii as ioascii
+    from astropy.table import Table
+
+    groot1 = "/Users/data/catalogs/gaia_xmm/"    # temp products in adir, matched, archive
+       # in archive are the by-obsid extractions of gaia eDR3 with PM corrections to the XMM epoch
+       # in adir these have been corrected for sources with no plx/PM 
+       # in matched we want to output from matching for each obsid of XMM-OM and Gaia from adir
+    groot2 =  "/Users/data/catalogs/suss_gaia_epic/"  # catalog products
+    groot3 =  groot1+"adir/"
+    groot4 =  groot1+"matched/"
+    obslist = "/Users/data/catalogs/suss_gaia_epic/suss5.0_obsids_pointing.fits" #list of OBSIDs
+    omcat = "/Users/data/catalogs/suss_gaia_epic/XMM-OM-SUSS5.0.fits"
+    stilts = f"java -jar /Users/kuin/bin/topcat-full.jar -stilts "
+    
+    f = fits.open(obslist)
+    #f.info()
+    obs = f['SUMMARY'].data["OBSID"] # named array
+    f.close()
+    
+    doall = False
+    
+    if doall:
+       f = fits.open(omcat)
+
+    for o in obs:
+        stemp = 'temp_'+o+'.fits'  # SUSS 
+     if doall:  
+          q = f[1].data["OBSID"] == o
+
+          t = Table(f[1].data[q])
+          t.keep_columns(["IAUNAME","N_SUMMARY","OBSID","SRCNUM","RA","DEC",])
+          stemp = 'temp_'+o+'.fits'  # SUSS 
+          gtemp = groot+"gaiaedr3_for_"+o+".vot"
+          mout = groot+"suss_gaia_match_"+o+".vot"
+          mfinal = groot+
+          t.write(stemp)
+          command = "{stilts} tmatch2 in1="+stemp+" in2="+gtemp+"  out="+mout+\
+           ' matcher=sky values1="RA/deg DEC/deg" values2="ra dec" '+\
+           ' params=1.0 find=best1 '
+
+        gin = groot3+"gaiaedr3_for_"+o+"_a.vot"
+        stemp = 'temp_'+o+'.fits'  # SUSS 
+        omtemp = groot4+stemp
+        omfinal = groot4+"suss5.0_gaiaedr3_"+o+".fits"
+
+        shortobsid = np.int(o)
+        command = f"SHORTOBSID=`echo {shortobsid} | bc`; "+f"{stilts} tpipe in="+omcat+"#1  out="+omtemp+" cmd=\'"+\
+          "select matches(OBSID,padWithZeros('${SHORTOBSID}',10))';echo $SHORTOBSID"
+        status = os.system(command)
+        print (status," -- ",command)
+      
+      #stilts tmatch2 in1=suss_0000110101.fits in2=gaiaedr3_for_0000110101_a.vot \
+      # out=suss5.0_gaiaedr3_0000110101.fits  matcher=sky values1="RA DEC" values2="ra dec" params=1.0 find=best1
+        command = "{stilts} tmatch2 in1="+omtemp+" in2="+gin+"  out="+omfinal+\
+           ' matcher=sky values1="RA DEC" values2="ra dec" params=1.0 find=best1 '
+        status = os.system(command)
+        print (status," -- ",command)
+========== 
+ alternatively
  
+ for o in obs[100:3000]:
+    ...:     os.system(f"stilts_match_suss_gaia.sh {o}")
+
+   
+    for o in obs[:10]:
+      gin = groot3+"gaiaedr3_for_"+o+"_a.vot"
+      stemp = 'temp_'+o+'.fits'  # SUSS 
+      omtemp = groot4+stemp
+      omfinal = groot4+"suss5.0_gaiaedr3_"+o+".fits"
+      command = f"stilts_suss_select_obsid.sh {o} '{omcat}#1' {omtemp} "
+      status = os.system(command)
+      print (status," -- ",command)      
+      command = f"stilts_match_by_obsid.sh {omtemp} {gin}  {omfinal} "
+      status = os.system(command)
+      print (status," -- ",command)
+       
+     
+=============       
+       
+    query = "SELECT gaia_source.ra,gaia_source.ra_error,"\
+    "gaia_source.dec,gaia_source.dec_error,gaia_source.pmra,gaia_source.pmra_error,"\
+    "gaia_source.pmdec,gaia_source.pmdec_error,"\
+    "gaia_source.phot_g_mean_mag,gaia_source.phot_bp_mean_mag,gaia_source.bp_rp,"\ 
+    "DISTANCE(POINT(ra_pnt,dec_pnt), POINT(ra,dec) ) AS ang_sep"\
+    "FROM gaiaedr3.gaia_source "\
+    "WHERE  1 = CONTAINS( POINT( ra_pnt, dec_pnt), CIRCLE(ra, dec, 17./60. )) "\
+    "ORDER BY ang_sep",
+    job = Gaia.launch_job_async( query, dump_to_file=True, 
+        output_file=f"gaia_edr3_for_{obsid}_{ra_pnt}_{dec_pnt}.vot", 
+    output_format='votable')
+    
+    res = job.get_results()
+    
+    #file = decompress_ftz(file)
+    f = fits.open(output_file)
+    t = Table(f['SRCLIST'].data)
+    ra = t['RA_CORR']
+    ra.name = 'CAT_RA'
+    de = t['DEC_CORR']
+    de.name='CAT_DEC'
+    err = t['RADEC_ERR']
+    err.name='CAT_RADEC_ERR'
+    tt = Table([ra,de,err])
+    tt.write(output=root+'epiccat.fit',format='fits',overwrite=True)
+    f.close()
+    f = fits.open(root+'epiccat.fit',mode='update')
+    f[1].header['EXTNAME']='GAIAeDR3'
+    f.flush()
+    f.close()
+    return root+'epiccat.fit'    
+ 
+# obsolete because does not work (matches whole exposures):
+
+# 11000 last one done -12000-13000 yellow 14000-16000 white now
+def make_for_many_variable(pos=None, poserr=None, iauname=None, recnums=[], chatter=1):
+    
+    given the single source catalogue selection of vaiable sources, this will 
+    create a fits file with just the SUSS observations of a given source.
+    
+    Note that the iauname has a single space in it before the 'J'
+    
+    position input 'pos' must be as an astropy coordinate object
+    
+    recnum will pull the source of the 'recnum' record after sorting on IAUNAME
+    
+    output file name is based on iauname, the class from our classification, and number
+    of UV+u records.
+    
+    For each filter another extension, and add MJD. 
+    
+    fecit npmk june 2023 
+    
+
+    from astropy import coordinates, units as u, constants as c
+    import numpy as np
+    from astropy.io import fits
+    from astropy.table import Table, vstack
+
+    indir = '/Users/data/catalogs/suss_gaia_epic/'
+    suss = 'XMM-OM-SUSS5.0ep.fits'
+    varfile = 'source_v2_chi2redGT2_aux_class_SIMBAD.fits' # 14,963 rows 
+    fsuss = fits.open(indir+suss)
+    fvars = fits.open(indir+varfile)
+    t = Table(fsuss[1].data)
+    v = Table(fvars[1].data)
+    v.sort('IAUNAME')
+    v.add_index('IAUNAME')
+    print (f"the total number of sources is now {len(v)}")
+
+    for recnum in range(recnums[0],recnums[1]):
+        
+        # what to look for
+        if iauname != None: 
+           recnum = v['IAUNAME'] == iauname
+    
+        if pos != None:
+           ra = pos.ra.deg
+           dec = pos.dec.deg
+       # NEED recnum from match to v   
+       
+        if pos == None and iauname == None:
+            if recnum < 0:
+                raise IOError("give position pos(astropy.coordinates) or iauname as input")
+            
+        # new: select records based on OBSIDS, EPOCHS in v => get all sources in image
+        rec = v[recnum]
+        t.sort('OBSID')
+    
+        ob = rec['OBSIDS'].split('_')
+        ep = rec['EPOCHS'].split('_')  
+        # remove duplicates
+        epstr = []
+        for o9,e9 in zip(ob,ep): epstr.append( f"{o9}{e9[:10]}" )
+        uniobep = np.unique(epstr)
+        ob = []
+        ep = []
+        for o9e9 in uniobep:
+            ob.append( o9e9[:10] )
+            ep.append( np.array(o9e9[10:],dtype=float) )
+        # locate records in SUSS    
+        qq = []  # list of matches    
+        for ob1, ep1 in zip(ob,ep):
+             ts = t['OBSID'] == ob1  # boolean list
+             tee = np.abs(t['obs_epoch'] - np.float(ep1)) < 3e-5 # bool sub-list
+             qq.append(ts & tee)      
+        # select records SUSS for that image ; next find the right source
+        t1s = [ ]
+        for k in np.arange(len(qq)):
+            t1s.append(t[qq[k]])
+        t2 = vstack(t1s)          
+       
+        # position desired source: 
+        acheck = np.isnan(rec['pm'])   
+        if acheck | (rec['pm'] < 43):
+            poserr = 1.5/3600.
+            if not acheck: poserr = (1.5 + rec['pm']*0.03)/3600.
+            # define Epoch 2000 position of source        
+            ra  = rec['RAJ2000Ep2000']
+            dec = rec['DecJ2000Ep2000']
+            pos = coordinates.SkyCoord(ra,dec,unit=(u.deg,u.deg),frame='icrs')
+            dra = np.abs(t2['RA']-pos.ra.deg) < poserr
+            dde = np.abs(t2['DEC']-pos.dec.deg) < poserr
+            t1 = t2[dra & dde]
+        else:    
+            poserr = 1.8/3600. 
+            # need to precess to the epochs of observation
+            ra  =  rec['RAJ2000Ep2000']
+            dec =  rec['DecJ2000Ep2000']
+            pmra = rec['pm']  *0.5 # need ['pmra'] in v catalogue
+            pmde = rec['pm']  *0.5 # need ['pmde']
+            ra_epoch=[]
+            dec_epoch=[]
+            t1s = []
+            for obsep in t2['obs_epoch']:  # for each star
+                ra9, dec9 = apply_proper_motion(ra,dec,2000.0,pmra,pmde, obsep )
+                dra = np.abs(t2['RA'] -ra9) < poserr
+                dde = np.abs(t2['DEC']-dec9) < poserr
+                if (dra&dde).sum() > 0:
+                    t1s.append(t2[dra & dde])
+            t1 = vstack(t1s)    
+
+#  write output file
+               
+        nobs = rec['UVW2_NOBS']+rec['UVM2_NOBS']+rec['UVW1_NOBS']+rec['U_NOBS']
+        class1 = rec['class_prediction']
+        name = rec['IAUNAME'].replace(" ","_")   # replace space with underscore
+        outfilename=indir+f"../var/var_{name}_{class1}_{int(nobs)}."
+    
+        if chatter > 0: print (recnum, outfilename)
+    
+        hdu = fits.PrimaryHDU()
+        hdulist = fits.HDUList(hdu)
+        hdulist[0].header['COMMENT']="observations of a single source from XMM-OM SUSS"
+    
+        # create bintable HDU from records 
+        hdu1 = fits.BinTableHDU( t1, name=rec['IAUNAME'])
+        hdu1.header['iauname'] = rec['IAUNAME']
+        hdu1.header['RA']      = (rec['RAJ2000Ep2000'],'J2000ep2000')
+        hdu1.header['Dec']     = (rec['DecJ2000Ep2000'],'J2000ep2000')
+        hdu1.header['class']   = (rec['class_prediction'],'predicted class')
+        if np.isfinite(rec['chi2red']): hdu1.header['chi2red'] = (rec['chi2red'],'reduced chi-squared, median from six filters')
+        hdu1.header['main_id'] = (rec['main_id'],'SIMBAD')
+        hdu1.header['maintype'] = (rec['main_type'],'SIMBAD')
+        if np.isfinite(rec['redshift']): hdu1.header['redshift'] = rec['redshift']
+        hdu1.header['sp_type'] = rec['sp_type']
+        hdu1.header['w2_nobs'] = rec['UVW2_NOBS']
+        hdu1.header['m2_nobs'] = rec['UVM2_NOBS']
+        hdu1.header['w1_nobs'] = rec['UVW1_NOBS']
+        hdu1.header['u_nobs']  = rec['U_NOBS']
+        if np.isfinite(rec['UVW2_AB_MAG']): hdu1.header['w2_abmag'] = (rec['UVW2_AB_MAG'],'median mag')
+        if np.isfinite(rec['UVM2_AB_MAG']): hdu1.header['m2_abmag'] = (rec['UVM2_AB_MAG'],'median mag')
+        if np.isfinite(rec['UVW1_AB_MAG']): hdu1.header['w1_abmag'] = (rec['UVW1_AB_MAG'],'median mag') 
+        if np.isfinite(rec['U_AB_MAG']): hdu1.header['u_abmag'] = (rec['U_AB_MAG'],'median mag')
+        if np.isfinite(rec['Gmag_gaia']): hdu1.header['Gmag']    = (rec['Gmag_gaia'],'Gaia DR3 Gmag')
+        if np.isfinite(rec['pm']): hdu1.header['PM'] = (rec['pm'], 'Gaia DR3 proper motion mas/yr')
+        hdulist.append(hdu1)
+    
+        # create extension with variable single source record ? SOURCE_INFO
+        hdu2 = fits.BinTableHDU(Table(rec),name="varinfo")
+        hdulist.append(hdu2)
+        # create extension for each filter: e.g., LC_UU (filter names W2,M2,W1,UU,VV,BB)
+    
+        hdulist.writeto(outfilename+'fits', overwrite=True)
+        
+        
+   December 5, 2023
+   
+I matched the subset which has gaiadr3_source_id values to the Gaia DR3 lite catalogue 
+in order to retrieve the lost columns for Gaia magnitude & colours Gmag, G-BP, G-RP, BP-RP
+Previously, the rows of V3/XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2_srcnum.fits
+with gaiadr3_source_id > 0 were selected for the input file (UPLOAD.t1):
+        
+SELECT * 
+   FROM TAP_UPLOAD.t1 INNER JOIN gaiadr3.gaia_source_lite 
+   ON TAP_UPLOAD.t1.gaiadr3_source_id = gaiadr3.gaia_source_lite.source_id    
+   
+This used the TAP Query interface in TopCat with ivo://esavo/gaia/tap  on table 
+gaiadr3.gaiasource_lite.    
+
+The other rows, i.e., with no gaiadr3 source id were saved. 66557 sources had match with PM
+correction. Now the other 5 896 493 sources. Match to Gaia DR3 2016 using positions (RA,DEC) 
+from SUSS using the CDS interface I/355/gaiadr3
+
+three parts
+gaia_tmp3b  source with PM  - match by gaiadr3 source id
+gaia_tmp4b  source in Gaia, small PM  - match by position (ra,dec) best within 1.0"
+gaia_tmp5b  source not in Gaia 
+
+after merging and renaming the files: 
+
+-rw-r--r--  1 kuin  staff    362989440 Dec  5 18:45 XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part1.fits
+66,577 sources with PM > 25 mas/yr
+-rw-r--r--  1 kuin  staff  22573393920 Dec  5 18:51 XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part2.fits
+4,149,511 sources with PM < 25 mas/yr and no match to Gaia DR3 with angDist < 1 arcsec
+-rw-r--r--  1 kuin  staff   9402304320 Dec  5 21:36 XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part3.fits
+-rw-r--r--  1 kuin  staff  32516568000 Dec  6 00:09 XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b.fits
+
+Problems found with SUSS5.0 
+
+1. some srcnum contain two entries for the same sources, e.g., 2429739 what is that? 
+   single image , summed image ? the magnitudes are different 
+   origin is the SUSS5.0 
+   
+   wrote script to make sure in light curve just a single time/mag per OBSID.
+   
+2. rudy-5 or summed image issue ? 
+   in:XMMOMV2_J004210.09411529.3_qso_uvw1_n72.fits OBSID:0202230301 srcnum:112546 
+   and many more in that file
+   
+   no, also here two clusters in RA,DEC -- both variable, but at different mean mag.
+   
+3. angular distance for match SUSS5 to Gaia DR3
+
+2024-01-23 
+
+Need for matching SUSS within more than 1" to Gaia DR3. Mat pointed out that 
+there is a possibility that for the bright stars the OM positions are not as accurate as
+1 arcsec. So I match the part3 file mentioned above to Gaia DR3 within 3.0".  It looks 
+like there are good matches up to 2.0 arcsec, after which we may pick up some bad ones. 
+
+XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part3A ... .fits has 476,795 sources 
+that match with a Gaia source to within 3 arcsec angDist 
+XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b_part3B ... .fits has 1,270,007 
+sources that can find no match to Gaia within 3". 
+
+
+2024-02-06 
+
+Classification rework. 
+
+Selected a new set of 30 input parameters. Better result. Mat came up with an expression 
+for differencing Gaia G mag to ground-based magnituds with sensitivity to the spatial 
+extent of a source. It starts with a filter. 
+
+gaia_extended =  ((BII>10.0)||(BII<-10.0))&&(gmag_M<19.0)&&!(gaiadr3_ra<500.0) ? 
+  (20.0-gmag_M) : ((gmag_M > 0.0) ? (gaia_Gmag-gmag_M) : (gaia_Gmag-V_AB_MAG))
+
+where BII is the galactic lattitude.  
+
+
+The claxbol software (classify_new.py) when running the optimisation needs to be 
+interrupted (CNTL-C) which leads to incomplete classifications file. 
+Also, the API has been updated requiring replacement of product() with prod(). 
+
+Priors: The selection for the priors has been done by crossmatching with SIMBAD, and then
+determining the proportion of stars, and non-stars, being 69% and 31%. SIMBAD selection 
+of QSOs and galaxies then gives 6% for QSOs and 25% for galaxies. 
+In version 0.1 of the classification, we used as priors [0.65,10,25]% and got as a
+result proportions for stars, QSO, galaxies = [0.78,0.04,0.18]. 
+Alternatively, using the proportions of QSO and galaxies from SDSS16 which are the 
+training set, we would get [0.69, 0.13, 0.18]. 
+Since there is uncertainty in the proportions of stars, QSO, and galaxies, a range of 
+values for the priors have been explored. 
+
+2024-02-22 Do a rerun with only quality_flag == 1 data for variable sources catalogue
+
+make_file_variable (onlyqualzero=True)
+
+2024-05-21 and later
+
+Need to redo the earlier classification with gaia_Gmag - WISE-W1 and gaia_extended, 
+using gaiadr3_source_id>0  instead of gaiadr3_ra< 500. 
+
+Also create 
+
+  Gaia_G_WISE_W1=((BII>10.0)||(BII<-10.0))&&
+  (WI_W1mag<16.0)&&
+  !(gaiadr3_ra>0)?(20.0-WI_W1mag):(Gaia_Gmag<15.6)&&
+  !(WI_W1mag>0.0)?(Gaia_Gmag-17.1):(gaia_Gmag-WI_W1mag)
+  
+    Gaia_G_WISE_W1=((BII>10.0)||(BII<-10.0))&&(WI_W1mag<16.0)&&!(gaiadr3_ra>0)?(20.0-WI_W1mag):(Gaia_Gmag<15.6)&&!(WI_W1mag>0.0)?(Gaia_Gmag-17.1):(gaia_Gmag-WI_W1mag)
+
+and thus, 
+
+  gaia_extended =  ((BII>10.0)||(BII<-10.0))&&
+  (gmag_M<19.0)&&
+  !(gaiadr3_ra>0)?(20.0-gmag_M):((gmag_M>0.0)?(gaia_Gmag-gmag_M):(gaia_Gmag-V_AB_MAG))
+
+   gaia_extended=  ((BII>10.0)||(BII<-10.0))&&(gmag_M<19.0)&&!(gaiadr3_ra>0)?(20.0-gmag_M):((gmag_M>0.0)?(gaia_Gmag-gmag_M):(gaia_Gmag-V_AB_MAG))
+
+where BII is the galactic lattitude.  gaiadr3_ra is being used, since there are some 
+Gaia sources with an source_is but without any photometry. 
+
+Starting now once more from 
+   XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b.fits (Jan 24, 2024)
+   
+create new input for classification in htranin directory
+    XMMOM_SUSS5.0_Sources_4claxbol_v6.csv
+    XMMOM_SUSS5.0_Sources_4claxbol_v6.in   
+classification is found in classificationcode/
+-rw-r--r--  1 kuin  staff         288  5 Jun 14:50 classification_set_v6.metrics
+-rw-r--r--  1 kuin  staff  1592182757  5 Jun 14:50 classification_set_v6.csv
+
+merged clssification_set_v6 [IAUNAME] to subset of XMM-OM-SUSS5.0ep_singlerecs_v2_srcnum_aux_stage2_v2b.fits
+(not VAR3, OBSID, SRCNAM, SRCDIST, SIGNIF, FLUX), and thus retains some basic aux/gaia data.
+this gave a catalogue in directory v3:
+====>
+   XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6.fits
+The classification report based on the input classification sets remains virtually 
+the same as before, but due to including upper limits which are needed since 
+the Gaia Gmag only goes down to ~19.5 magnitudes, and making that update for 
+sources outside the Galactic plane, we find now some previously classified as stars 
+are being better represented as QSO or galaxy class. 
+   
+   star          QSO        galaxy
+A : NpC0=3809450, NpC1=516515, NpC2=1637085
+   previously (no upper limits)
+B : NpC0=4136491, NpC1=370822, NpC2=1455737  
+
+The ratio's of change are star:0.92, QSO:1.39, galaxy:1.12
+and the relative fractions are stars:0.639, QSO:0.087, galaxy:0.274
+
+And this show a dramatic increase in QSO's. We therefore now test against 
+external catalogues as before using the SIMBAD object types. 
+  in TopCat x SIMBAD and the catalogue match ra,dec J2000, ep2000, delta_r=2.5 arcsec. 
+  -> 239,227 rows
+  write to 
+  /Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6xSIMBAD.fits
+ 
+If we treat the SIMBAD main_type=Star,QSO,Galaxy as truth, we get the following
+matrix
+
+true->	        	star	QSO		galaxy	retrieved 
+predicted star		83003	268		4173	89.3%
+predicted QSO		6282	6404	1076	94.4%
+predicted galaxy	3479	109		12817	70.9%
+TruePos.Rate		94.8%	46.5%	78%
+
+The low t.p.r. for QSOs is due to the large number of misclassified stars.
+Indeed, 2118 have a parallax in SIMBAD/Gaia. Also, we took the training sets 
+from the SDSS which is partly in SIMBAD, so this is a bit biased, but, for 
+example, for true star, predicted QSO, and not in training set, we get 6278
+sources, only 7 less than in the table above. 
+We need to discriminate between stars and QSO better. 
+The outlier histogram for this set as compared to the full catalogue shows 
+ a different shape. Whereas the full catalogue has outlier peak around 9, 
+ this set is flattish between 8 and 19, so there is a poor match to the class.
+ Restricting outlier to < 15 leaves still 4626 misclassified sources. 
+
+---
+
+process the catalogs -- notes 
+
+   Processing : locating the high proper motion sources by matching with Gaia eDR3
+
+
+%load_ext autoreload
+autoreload 2
+
+You might also find the Table hstack() function useful. This will let you add 
+all the columns of one table into another table. 
+
+  https://docs.astropy.org/en/stable/table/operations.html#id6
+
+In your case this might look like:
+
+from astropy.table import hstack
+tab = hstack([tab, c1])
+
+note: way too slow!
+   
+   # writing to a FITS table : Column definitions 
+   cols = summary.columns
+   c1 = fits.Column(name='TDB_MINUS_TT', array=col_tdb_minus,unit='s', format='E')
+   c2 =  ioascii.read('/data/catalogs/suss5.0_summary_col_tdb_minus_tt.dat')
+   cols.add_col(c2['col_tdb_minus'])
+   
+   # make a new fits bintable extension after reading in the ascii table and 
+   # defining the columns in cols, the data are in tab (TBD)
+
+note: getting the Gaia EDR3 with high PM (full sky)
+
+SELECT TOP 12001000 gaia_source.source_id,gaia_source.ra,gaia_source.ra_error,gaia_source.dec,
+gaia_source.dec_error,gaia_source.parallax,gaia_source.parallax_over_error,gaia_source.pm,
+gaia_source.pmra,gaia_source.pmra_error,gaia_source.pmdec,gaia_source.pmdec_error,
+gaia_source.ruwe,gaia_source.phot_g_mean_flux,gaia_source.phot_g_mean_flux_over_error,
+gaia_source.phot_g_mean_mag,gaia_source.phot_bp_mean_flux_over_error,
+gaia_source.phot_bp_mean_mag,gaia_source.phot_rp_mean_flux_over_error,
+gaia_source.phot_rp_mean_mag,gaia_source.bp_rp,gaia_source.dr2_radial_velocity,
+gaia_source.dr2_radial_velocity_error,gaia_source.l,gaia_source.b
+FROM gaiaedr3.gaia_source 
+WHERE (gaiaedr3.gaia_source.pm>=25)
+
+===
+
+14 June 2022 https://gea.esac.esa.int/archive/ log in 
+gaiadr3 from lite catalogue all sources with PM>25
+
+SELECT TOP 30000000 * FROM gaiadr3.gaia_source_lite
+WHERE (gaiadr3.gaia_source_lite.pmra*gaiadr3.gaia_source_lite.pmra+gaiadr3.gaia_source_lite.pmdec*gaiadr3.gaia_source_lite.pmdec) > 625
+
+=> gaiadr3_highpm
+===
+
+2 Mar 2023 https://gea.esac.esa.int/archive/ log in 
+
+:retrieve all gaia with PM > 2mas/yr Epoch 2016, for matching our source to gaiadr3 ID. 
+
+SELECT TOP 30100100 gaia_source.designation,gaia_source.source_id,gaia_source.ra,
+gaia_source.ra_error,gaia_source.dec,gaia_source.dec_error,gaia_source.parallax,
+gaia_source.parallax_over_error,gaia_source.pm,gaia_source.pmra,gaia_source.pmra_error,
+gaia_source.pmdec,gaia_source.pmdec_error FROM gaiadr3.gaia_source WHERE (gaiadr3.gaia_source.pm>=10.0)
+
+=> gaiadr3_pmgt2
+
+==== from notebook 1
+28 june 23
+
+New match of the new SUSS single source result V2 which was rematched to the previous 
+version match in order to keep the better Gaia match from the Xmatch site.   
+(TBD file name used)XMMOM_SUSS5.0_Sources_v0_1xGaiaDR3.fits
+(2)XMM-OM-SUSS5.0_singlerecs_v2.fits
+(3)XMMOM_highpm_probaAB_gt_half.fits
+
+The reason to do it again is that the initial match of the high PM sources came back with 
+Gaia source_ids. 
+When I added further Gaia DR3 columns to the whole SUSS, I used a match on position, but
+some pf the high PM sources were then mismatched to another source. So first we split off 
+the high PM sources, and match them using the Gaia source_id. However, we need to choose 
+how to do that. We have the downloaded subset of Gaia DR3 with pm > 10, but that has 
+not all the required columns. The other way is to match using TAP on the whole 
+gaiadr3.gaia_source catalogue.
+
+Using TopCat we split  XMM-OM-SUSS5.0_singlerecs_v2xhighpm_probabGThalf.fits into 
+(1) temp_pm_sources.fits (66,557 sources)  
+(2) temp_nopm_sources.fits (5,896,514 sources)
+
+match (1) using TAP on gaiadr3.gaia_source : 
+====
+26 June 2023 NPMK
+
+New version April-June 2023
+
+- new code for SUSS6 produced to add proper motion effects (sent to Simon)
+[ a] match2gaiadr3_positions2Epoch
+[ b] addEpoch2Source.sh (previously developed for this project)
+The code works by sorting the input first for observations done 
+within a range of Epochs (typically 0.1 year); then matching the 
+selected subset to Gaia DR3 sources with PM > 25 mas/year which 
+were placed on the relevant Epoch. Matching is done using STILTS.
+ 
+This is more efficient but less accurate then the method used for this project 
+using the Xmatch website, but that requires uploading and downloading the data.
+Xmatch advantage is the consideration of how crowded the field is on the 
+possibility of mis-match. 
+
+- software to produce the single-source catalogue in two steps, 
+   - match sources based on their IAUNAME
+   - match results on PM, and plx_over_error being the same
+   
+The software was changed to derive new statistics, namely chi-squared, skew. 
+Also, two fields were added capturing OBSIDS and Epochs of the input. 
+The latter two are the same nearby objects unless at the edge of an observation. 
+The magnitude is now the median value, while the extreme is the minimum magnitude 
+in the input, so maximum flux. 
+
+The single source processing thus produces two files, one with significant PM and 
+one where the objects are not reported in Gaia DR3 as having PM>25 mas/yr. Only the 
+first set has a Gaia DR3 source_id match. 
+
+- In the single source catalogue there are sources with plx < 0 or with large 
+positional uncertainties. Examination of the histograms of these data with separation 
+of source and Gaia DR3 match showed requiring plx > 0 is consistent with the 
+expected drop off of the number of matches with separation, while the excluded 
+set with plx < 0 did not fall off with separation. 
+[positional errors? ]
+
+The matched sources with plx>0 are considered to be of higher quality.
+
+==== 
+30 Jun 2023 TopCat 
+
+part1: match only pmcat.gaiadr3_source_id from TAP_UPLOAD (temp_pm_sources.fits)
+
+SELECT pmcat.*, refcat.source_id, 
+refcat.pm,refcat.parallax_over_error,
+refcat.phot_g_mean_flux_over_error,
+refcat.phot_g_mean_mag,
+refcat.phot_bp_mean_flux_over_error,
+refcat.phot_bp_mean_mag,
+refcat.phot_rp_mean_flux_over_error,
+refcat.phot_rp_mean_mag,
+refcat.bp_rp,
+refcat.bp_g,
+refcat.g_rp,
+refcat.radial_velocity,
+refcat.radial_velocity_error,
+refcat.phot_variable_flag,
+refcat.classprob_dsc_combmod_galaxy,
+refcat.classprob_dsc_combmod_quasar,
+refcat.classprob_dsc_combmod_star,
+refcat.non_single_star
+FROM gaiadr3.gaia_source AS refcat
+RIGHT OUTER JOIN TAP_UPLOAD.t5 AS pmcat
+ON refcat.source_id=pmcat.gaiadr3_source_id
+
+
+This works only if using the source_id in the upload temp_pm_sources.fits. 
+Afterwards, match locally with the full input temp_pm_sources using Topcat
+XMMOM_SUSS5.0_SourcesV2part1.fits => 66,557 sources
+
+*** NEXT part2: the sources with no PM match. 
+
+unfortunately, for matching this with position error is not possible (I would 
+need a local copy of Gaia DR3 for STILTS)
+
+So I did a TopCat match CDSxmatch on position 'best' with radius 0.9 arcsec for 
+temp_nopm_sources.fits with gaiadr3; only keep columns like part1 above. 
+
+
+Further selection is needed: some of the sources in the high PM set (1) are likely 
+not good matches. After plotting the histograms it became clear that selecting 
+on the parallax_over_error also removed sources with bad positional match:
+-- Keep only those with parallax_over_error > 0 which removes 
+
+There remain now some sources with not any Gaia DR3 match 
+5,896,514 in temp_nopm_sources.fits, and 4,534,565 matches in XMMOM_SUSS5.0_SourcesV2part2.fits, so 
+4,534,565
+--------- -
+1,361,949 sources do _not_ have a match in GaiaDR3 within 1.5 arcsec.  
+
+Proposed pmflag:
+pmflag : 1 for all matches in part1 with parallax_ovser_error > 3 based on position error per object
+         2 for matched in part1 otherwise ; also based on position error per object
+         3 for part2 with match parallax_over_error > 3 with position within 1.5 arcsec 
+         4 for part2 otherwise with position within 1.5 arcsec
+         5 for no Gaia DR3 match found within 1.5 arcsec 
+         
+         
+merging  to  XMMOM_SUSS5.0_SourcesV2part1+2   (5,963,071 sources)     
+=====
+reporting July 5, 2023 
+
+starting with (3) suss_gaia_epic/XMMOM_SUSS5.0_Sources_v2part1+2.fits:
+
+I added a new column 'chi2red' defined as 
+
+median([UVW2_CHISQ/UVW2_NOBS , UVM2_CHISQ/UVM2_NOBS, UVW1_CHISQ/UVW1_NOBS. U_CHISQ/U_NOBS, B_CHISQ/B_NOBS, V_CHISQ/V_NOBS])
+
+This distribution as a log(chi2red peaks at a value of around 0.5. I define therefore a subset with 
+possibly variability of interest as chi2red > 2, which has 214,229 rows/sources, that is 4% of all sources. 
+I save this as
+ (4) suss_gaia_epic/source_v2_chi2redGT2.fits
+
+****** After discussion with Mat, he thinks that we should select on the extreme value of the reduce ChiSq. 
+
+****** On hindsight (July 18) I think we need to select also those with the higher number of observations in anyone of the filters, 
+       because doing more (automated) analysis with, e.g., wavelets or power spectrum needs a decent number of points to fit. 
+
+changed definition to chisq/(N-1)
+
+Next I use TopCat match (4) to (5) XMM_SUSS5.0_Sources_v0_1_traininginput_v2.fits using 
+IUANAME then omitting from the result  *var*, colours, columns, and leave the merged 
+magnitudes per colour. The result is then matched to 
+(6) XMMOM_SUSS5.0_Sources_v0_1_classifications.fits  which adds the classifications to the 
+result being: (7) source_v2_chi2redGT2_aux_class.fits (214,211 sources)
+
+The result was finally matched by J2000,Epoch 2000 positions (1.0" radius) to SIMBAD using TopCat 
+-> (8) source_v2_chi2redGT2_aux_class_SIMBAD.fits  (14,963 rows) 
+
+    #     NOBS(max)
+w2  5051  36
+m2  5902  38
+w1 11336  59
+u   7951  67
+b   4663  41
+v   4226  58
+
+The non-SIMBAD has longer NOBS series
+
+Notice that we did not rerun the classification at this time. The main change is in the calculation
+of Chi-Squareds. 
+
+July 18, updated these notes. 
+
+In the past week we selected some sources to investigate how their data supposted the chi-squared indication
+of variability. One source showed a clearly decreasing flux over the years, with the data also 
+spread fairly wide around the trend. Other sources showed large changes in flux without a clear 
+trend. The issue is partly that the data have been taken in a rather random way over time. 
+
+The examination was rather time consuming using TopCat since the source information in (8) was used 
+on the original SUSS5.0+Epoch. I wrote a program that prepares a fits file that combines 
+all for one source: 
+make_for_many_variable(pos=None, poserr=None, iauname=None, recnums=[0,5], chatter=1)
+
+
+
 
 """
