@@ -49,6 +49,8 @@ bad_obsidfile = "remove_obsidfile_here.txt"
 
 # tracing the selections log
 tracing_log = 'tracing.txt'
+forwentong = open("details4wentong.log","w")
+    
 # verbosity
 chatter = 2
 
@@ -62,6 +64,8 @@ make_plots = True
 # directory for putting the light curves fits files and the plots, relative to inputdir
 var_lc = '../var_lc/'
 
+# select how many peaky observations in an obsid to remove 
+minpeaks= 2
 
 
 ##########################################################################################
@@ -1777,7 +1781,7 @@ def classify_light_curve(time, flux, err, fig, noplot):
 
 
 def concatenate_variable_sussfiles(
-       indir=inputdir+var_lc#"/Volumes/DATA11/data/catalogs/suss_gaia_epic/var_lc/lc_fits/"):
+       indir=inputdir+var_lc):  #"/Volumes/DATA11/data/catalogs/suss_gaia_epic/var_lc/lc_fits/"):
     """
     We created a fits file with the enhanced SUSS records for each variable. 
     For easy searching and stats we want to concatenate the first extensions 
@@ -1795,14 +1799,14 @@ def concatenate_variable_sussfiles(
  
 def preprocessing(
         minnumber=minnumber,  
-        chi2_red_min=chi2_red_min., 
-        inputdir=inputdir#'/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/',
-        inputcat=inputcat#"XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6_UVqual=0.fits",
+        chi2_red_min=chi2_red_min, 
+        inputdir=inputdir, #'/Volumes/DATA11/data/catalogs/suss_gaia_epic/v3/',
+        inputcat=inputcat, #"XMM-OM-SUSS5.0ep_singlerecs_v4_classified_v6_UVqual=0.fits",
         onlyqualzero=onlyqualzero,
         min_srcdist=min_srcdist,
         chatter=chatter,
-        minpnts=minpnts, 
-        threesigma=threesigma,
+        minpnts=minnumber, 
+        threesigma=chi2_red_min,
         catversion=catversion,
     ): 
     """
@@ -1886,6 +1890,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
        os.system(f"mkdir {inputdir}/../var_lc")
     indir = f"{inputdir}/../var_lc/"
     os.system(f"cd {indir}")
+    forwentong.write(f"\n{50*'+='}\npreprocessing: Starting to call make_file_variable for each band in turn.")
     for band in ["uvw2","uvm2","uvw1","u","b","v"]:
         xmm2.make_file_variable(band=band,
             chi2_red_min=chi2_red_min,
@@ -1894,7 +1899,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
             inputdir=inputdir,
             inputcat=inputcat,
             )
-    print (f"writing the list of X*.fits files as allsources.txt")        
+    forwentong.write (f"preprocessing: Writing the list of X*.fits files as allsources.txt")        
     os.system(f"ls -1 X*.fits > allsources.txt")
     #
     # make catalogue for selection - match allsources.txt to inputcat
@@ -1909,6 +1914,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     xgaiavar = "xgaiavar.fits"
     xsimbad = "xsimbad.fits"
     
+    # add filename
     command=f"java -jar {TOPCATPATH}/topcat-full.jar -stilts "+\
     f"addcol test split(col1,'_');addcol name concat(test[0],' ',test[1]);addcol filename col1 "+\
     f"in={in1} out={catin1}" 
@@ -1916,7 +1922,8 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     status = os.system(command)
     if status > 0: 
         print(f"2600 ERROR in {command} ")
-       
+    forwentong.write(f"preprocessing: Creating a catalogue subset from:\n   {inputcat}\nand the allsources.txt list.")    
+    # match iauname and name derived from filename  
     command=f"java -jar {TOPCATPATH}/topcat-full.jar -stilts "+\
     f"tmatch2 in1={catin1} ifmt1=ascii  in2={catin2} ifmt2=fits "+\
     f"out={outcat} ofmt=fits-basic  matcher=exact "+\
@@ -1928,19 +1935,21 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     if status > 0: 
         print(f"2600 FOUT!ERROR in {command} ")
         
-    # match to GaiaVar
+    # match and add column main_type from SIMBAD
     command=f"java -jar {TOPCATPATH}/topcat-full.jar -stilts "+\
     f"cdsskymatch cdstable=simbad in={catin2} ifmt=fits out={xsimbad} "+\
     f"icmd='keepcols  IAUNAME gaiadr3_ra gaiadr3_dec' "+\
     f"ocmd='keepcols main_type' radius=2.0 "+\
     f"ra=gaiadr3 dec=gaiadr3_dec find=best "
+    forwentong.write(f"preprocessing: Creating a catalogue subset: adding main_type from SIMBAD")    
     
-    # match to Simbad
+    # match to Gaia DR3 variable list
     command=f"java -jar {TOPCATPATH}/topcat-full.jar -stilts "+\
     f"cdsskymatch cdstable=I/358/varisum in={catin2} ifmt=fits out={xgaiavar} "+\
     f"icmd='keepcols  IAUNAME gaiadr3_ra gaiadr3_dec' "+\
     f"ocmd='keepcols Gmagmean' radius=2.0 "+\
     f"ra=gaiadr3 dec=gaiadr3_dec find=best "
+    forwentong.write(f"preprocessing: Creating a catalogue subset: adding from GaiaVar Gmagmean")    
     
     # merge together 
     command=f"java -jar {TOPCATPATH}/topcat-full.jar -stilts "+\
@@ -1956,7 +1965,8 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     f"values1='name' values2='IAUNAME'  "+\
     f" params={match_par}   join=all1 find=best1 fixcols=dups suffix1=  suffix2=suss  "+\
     f" ocmd=delcols 'GroupID';delcols 'GroupSize' "
-    
+    forwentong.write(f"preprocessing: Creating a catalogue subset: merged parts from gaiavar and simbad")
+        
     # create new col GaiaVar and SimbadVar
     # create IAUNAME from filename in file :
     # topcat: new col; test=split(col1,"_")
@@ -2112,8 +2122,10 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     import numpy as np
     import astropy.units as u
     from astropy.coordinates import SkyCoord
+        
+    forwentong.write(f"postprocessing: start \n make list results [iauname, filename, obsids, ra, dec]")
     
-    file1 = "SimbadxSUSS5_variable_sources.fits"
+    file1 = outcat # "SimbadxSUSS5_variable_sources.fits" 
     file2 = "temp_file.fits"
     os.system(f"cp {indir}{file1} {file2}")
     with fits.open(indir+file1) as f1:
@@ -2124,13 +2136,13 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
            source = row['IAUNAME']
            filename = row['filename'].split("/")[-1]
            obsids = row['OBSIDS'].split("_")
-           ra = row['RAJ2000Ep2000']
-           de = row['DEJ2000Ep2000']
+           ra = row[RA2000]#['RAJ2000Ep2000']
+           de = row[DE2000]#['DEJ2000Ep2000']
            results.append([source, filename, obsids,ra,de])
 
  # - - - - 
    
-    # test for eruptive : have 5 sigma (staterr+syserr) above median flux 
+    wentong.write(f"postprocessing: test for eruptive : have {threesigma} sigma (staterr+syserr) above median flux ")
     # test for dimming  : have 5 sigma (staterr+syserr) above median flux 
     obspeak=[]
     syserr = 0.02
@@ -2158,33 +2170,40 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
             q = mval > 1.
             print (f" median {np.median(mag)}  {threesigma} sigma {threesigma * (magerr+syserr)}",
                 f"is {mval} > 1 ?" )
+            wentong.write(f"peak search: {filen}  median mag={medmag} std={stdmean} ")    
             if q.sum() > 0:
                 obsmem = obses, mag, q
-                print (f"found peaks in {filen}, {mag} {obses} {q}\n")
+                wentong.write (f"\tfound peaks in {filen}, {mag} {obses} {q}\n")
                 if q.sum() == 1:
                     bo.write(f"{obses[q][0]}\n")
+                    wentong.write(f"\t\t{obses[q][0]}\n")
                     obspeak.append(f"{obses[q][0]}")
                 else:    
                    for o in obses[q]:
-                      bo.write(f"{o}\n")
+                      bo.write(f"\t\t{o}\n")
+                      wentong.write(f"              {{o}}\n")
                       obspeak.append(o)
-    uniq_obspeak=np.unique(obspeak) 
+    uniq_obspeak=np.unique(obspeak)
+    wentong.write(f"\npeak search: keeping unique obsids : \n\t{uniq_obspeak}\n")
     obspeak = np.array(obspeak)                     
 # - - - -
     obspeakstat=[]
-    min_peaks = 2   # for N > 5 test 23 Aug
+    min_peaks = minpeaks   # for N > 5 test 23 Aug
     for o1 in uniq_obspeak:
         no1 = 0
         q= o1 == obspeak
         no1 = q.sum()
         obspeakstat.append([o1,no1])
     obspeakstat = np.array(obspeakstat,dtype=int)
+    wentong.write(f"wrote the statistics for each OBSID in list obspeakstat, and if > {min_peaks} to file baddies.\n The complete obspeakstat are :\n {obspeakstat}\n")
+    
     if len(obspeakstat) > 1:    
        npeaks = obspeakstat[:,1]
        q = np.where(npeaks > min_peaks)           
        baddies = obspeakstat[q,:][0]
        badobs = baddies[:,0]
        
+       wentong.write(f"before proceeding, some obsids (badobs) are being removed from the OBSIDS, SRCNUM, and EPOCHS columns in the temporary file\n")
        # remove / update the peaky obsids from the file 
        update_cataloguefile(file2,badobs)
                    
@@ -2212,7 +2231,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     """
 
  #    cull obsids with many sources, but not enough GaiaVar sources
-    
+    wentong.write(f"\nCulling sources which have not enough GaiaVar matches:\n")
     with fits.open(file2) as f1:
        t0 = Table(f1[1].data)
        gaiavar=t0['GaiaVar']
@@ -2221,8 +2240,8 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
            source = row['IAUNAME']
            filename = row['filename']
            obsids = row['OBSIDS'].split("_")
-           ra = row['RAJ2000Ep2000']
-           de = row['DEJ2000Ep2000']
+           ra = row[RA2000]#'RAJ2000Ep2000']
+           de = row[DE2000]#'DEJ2000Ep2000']
            results.append([source, filename, obsids,ra,de])
     obs = []
 
@@ -2234,7 +2253,8 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
             else:   
                obs.append(o)
     uniq_obsids = np.unique(obs) 
-    print (f"number of unique obsids is {len(uniq_obsids)}")
+    wentong.write(f"\t number of remaining unique obsids is {len(uniq_obsids)}")
+    wentong.write(f"\niauname filename max(count obsids) n_src_list n_gaiavar_list\n")
 # - - - -  
     # find for each source 
     source_results = []
@@ -2255,6 +2275,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
             n_src_list.append(n_src)
             n_gaiavar_list.append(n_gaia_srcs)
         source_results.append([source,np.max(n_src_list),n_src_list,n_gaiavar_list]) 
+        wentong.write(f"{source} {x[1]} {np.max(n_src_list)} , {n_src_list} ,{n_gaiavar_list}\n")
 
     n1=[]   # list the maximum number of sources in any of the obsids 
     for x in source_results: 
@@ -2273,7 +2294,10 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
        except:
            print (f"error max gaiaVar: \n{x}\nxm={xm}")    
        n1.append(xm)
-    n_gaia = np.array(n1)                                
+    n_gaia = np.array(n1)           
+    
+    wentong.write(f"\n{40*'+='}\nGaiaVar: \nmax number sources in any obsid:\n{n_all}\nsubset with GaiaVar is:\n{n_var}\nmax number of GaiaVar:\n{n_gaia}\n{50*'+='}\n ")    
+                     
  # - - - - - figure();plot(n_all,n_gaia/n_all,'+b',)
           
     bad_obsid = []  
@@ -2286,11 +2310,14 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     bad_res = []
     bad_src = []
     n_gaia_4these = []
+    wentong.write(f"GaiaVar: results, source, n_gaia \n")
     for k in range(Nsrc):
         bad_res.append(results[k])
         bad_src.append(source_results[k])
         n_gaia_4these.append(n_gaia[k])
-    # now we need to filter out the bad obsids from the good ones     
+        wentong.write(f"{results[k]} {source_results[k]} {n_gaia[k]}")
+    # now we need to filter out the bad obsids from the good ones  
+    wentong.write(f"\nNow go over obsids and check if it has enough GaiaVars and points\n\nobsid n_src n_gaia/n_src  n_gaia\n")   
     for o in uniq_obsids:  # for each OBSID check if good or bad
         for k in range(len(bad_res)):
             res    = bad_res[k]
@@ -2300,17 +2327,20 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
             n_src1 = srcres[2]  # matching list of sources 
             for obs,nnn in zip(obsid1,n_src1):
                  if o == obs: # match outer loop
-                     # print (f"{o}  x={nnn}  y={ngaia1/nnn} {ngaia1}")
+                     wentong.write (f"{o}  x={nnn}  y={ngaia1/nnn} {ngaia1} ")
                      if (nnn > n_src_limit) & (ngaia1/nnn < n_var_ratio_limit):  # bad selection
                          bad_obsid.append(o)
+                         wentong.write(f" {bad_obsid}\n")
+                     else: wentong.write("\n")    
     uniq_bad_obsids=np.unique(bad_obsid)
+    wentong.write(f"{40*'+='}\n the unique bad_obsids found with the GaiaVar/minimum src criterion are:\n{uniq_bad_obsids}\n  ")
     
     good_obsids = []
     for obs in uniq_obsids:
         if obs in uniq_bad_obsids:
             continue
         else: good_obsids.append(obs)    
-    print (f"number of bad obsids (too many sources, not enough Gaia Var's) is {len(uniq_bad_obsids)}")    
+    wentong.write (f"\n The number of bad obsids (too many sources, not enough Gaia Var's) is {len(uniq_bad_obsids)}\n")    
 # - - - -    plot(n_all,n_gaia/n_all,'+g',)
       
     with open(indir+"good_obsids.txt","w") as gf:
@@ -2321,12 +2351,14 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
            gf.write(f"{obs}\n")
                            
     # remove / update the obsids with many sources above expected from the file 
+    wentong.write(f"GaiaVar: The bad obsids are now removed from the temporary catalog being processed (step3_...)\n")
     file3 = f"step3_{file2}"
     os.system(f"cp {file2}  {file3}")
     update_cataloguefile(f"step3_{file2}",uniq_bad_obsids)
  # - - - -                   
     # move the results from step 1 out of the way
     os.system("mkdir var_lc_step1/;mv X*.fits var_lc_step1")
+    wentong.write(f"GaiaVar: Moving the previous fits file results to subdir var_lc_step1\n")
     # rerun with corrected obsids 
     
     for band_ in ["uvw2","uvm2","uvw1","u","b","v"]:
@@ -2339,11 +2371,13 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
          chi2_red_min=5., inputdir="./",inputcat=file3,min_srcdist=6.0,
          bad_obsidfile="remove_obsids.txt",chatter=2)
     """ 
+    wentong.write(f"Remaking the fits files for the selected variables after culling. (newfiles.txt) \n")
     # create light curve plots (may need to adjust minpnts)
     os.system("ls -1 X*.fits > newfiles.txt")
     f2 = open("newfiles.txt")
     files = f2.readlines()
     f2.close()
+    wentong.write(f"\n writing plot files / calling plot_lc\n")
     for i, lcfile in enumerate(files[0:]):
         file=lcfile.split("\n")[0]
         print (f"==============\nfile {i}  {file}")
@@ -2358,20 +2392,20 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
                 trynumber+=1
                 pass          
     
-    # repeat earlier code with 'file3' to recompute n_all, n_gaia (not implemented here)
-     
-"""
-
-"""                
-                             
+    # repeat earlier code with 'file3' to recompute n_all, n_gaia (not implemented here)                             
     return n_all,n_gaia, bad_obsid, good_obsids, results, source_results
-    
+  
+    print ("WARNING: remember to call close_wentong() to close the log!!!!")   
+    print ("WARNING: remember to call close_wentong() to close the log!!!!")   
+    print ("WARNING: remember to call close_wentong() to close the log!!!!")   
  # end post processing                               
 
  # end post processing                               
 
  # end post processing                               
 
+def close_wentong():
+    wentong.close()
 
 def update_cataloguefile(file2,badobsids):
     """
