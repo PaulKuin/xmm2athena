@@ -1,5 +1,16 @@
 # XMM2athena-OM
 
+**current status (May 2025)**
+
+The software has been verified using SUSS6 up and including making a single source catalogue.
+
+The classification part still has to be checked.
+
+The variability part is currently being worked on in making the output clear enough to hunt down the reason why some fields locate many variables whereas there are none found in the Gaia Variability catalogue.
+
+NPMK
+
+
 **Introduction**
 
 The codes found here were developed whilst enhancing the serendipitous UV source survey catalogue (SUSS) Version 5 of the XMM-Newton Optical Monitor by classifying the sources and investigating variability.  
