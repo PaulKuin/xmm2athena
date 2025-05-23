@@ -31,7 +31,7 @@ band = 'uvw1' # one of uvw2,uvm2,uvw1,u,b,v
 chi2_red_min = 5.0
 
 # select only records from the single source catalogue which have good quality ? 
-onlyqualzero = False
+onlyqualzero = True
 
 # set the minimum required source distance for inclusion in the variability 
 min_srcdist  = 6.0
@@ -2126,13 +2126,16 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
            results.append([source, filename, obsids,ra,de, fband])
 
  # - - - - 
-   
+#for obsband in bands:
     wntg.write(f"postprocessing: test for eruptive : have {threesigma} sigma (staterr+syserr) above median flux \n")
     # test for dimming  : have 5 sigma (staterr+syserr) above median flux 
-    obspeak=[]
+    obspeaks = {'uvw2':[],'uvm2':[],'uvw1':[],'u':[],'b':[],'v':[]}
+    badobs = {'uvw2':[],'uvm2':[],'uvw1':[],'u':[],'b':[],'v':[]}
+    all_badobs = []
     bandlist = []
     srcnlist = []
     syserr = 0.02
+    obsmem_list = []
     with open("peak_in_obsid_list.txt","w") as bo:
         for res in results:
         
@@ -2164,65 +2167,61 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
                 f"is {mval} > 1 ?" )
             wntg.write(f"2157 {band} no peak in search: {filen}  median mag={medmag:.2f} std={stdmean:.2f} \n")    
             if q.sum() > 0:
-                obsmem = obses, mag, q, band
+                obsmem_list.append([obses, mag, q, band])
                 wntg.write (f"\n\t2160 {band} found peaks in file={filen}, filter={band}\n mag={mag} \nobsids={obses} \npeak mval > 1={q}\n")
                 if q.sum() == 1:
-                    bo.write(f"{obses[q][0]}\n")
+                    bo.write(f"{obses[q][0]} {band}\n")
                     wntg.write(f"\tobsid[one peak ]{obses[q][0]}\n")
-                    obspeak.append(f"{obses[q][0]}")
+                    obspeaks[band.lower()].append(f"{obses[q][0]}")
                 else:    
                    for o in obses[q]:
-                      bo.write(f"{o}\n")
-                      wntg.write(f"  tobsid[not one (more, less) peak] {{o}}\n")
-                      obspeak.append(o)
+                      bo.write(f"{o} {band}\n")
+                      wntg.write(f"  tobsid[more than one peak] {{o}}\n")
+                      obspeaks[band.lower()].append(o)
     # for each variable lc-filter file obspeak list the obsid with the peak value   
     # so if there are multiple sources with the peak in the same obsid (could be 
     # different filter) we can find them now.
-               
-    uniq_obspeak=np.unique(obspeak)
-    wntg.write(f"\n\n2171  peak search: keeping unique obsids : \n\t{uniq_obspeak}\n")
-    obspeak = np.array(obspeak)        
-   # srcnlist = np.array(srcnlist)  # should append only when obspeak is updated
-   # bandlist = np.array(bandlist)             
-# - - - -
-    obspeakstat=[]
-    min_peaks = minpeaks   # for N > 5 test 23 Aug
-    for o1 in uniq_obspeak:
-        no1 = 0
-        q= o1 == obspeak
-        """
-        if q.sum() > 1:
-            snames = srcnlist[q]
-            sbands = bandlist[q]
-            # check if the same source, different filters      
-            if (np.unique(sbands) > 1) & (np.unique(snames) > 1): # multiple filters
-                wntg.write(f"2198 peak search Duplicates? sources={snames} filters={sbands}\n")
-        # currently no screening done on those.                  
-        """
-        no1 = q.sum()
-        obspeakstat.append([o1,no1])
-    obspeakstat = np.array(obspeakstat,dtype=int)
-    wntg.write(f"2182 wrote the statistics for each OBSID in list obspeakstat, and if > {min_peaks} to file baddies.\n The complete obspeakstat are :\n {obspeakstat}\n")
     
-    if len(obspeakstat) > 1:    
-       npeaks = obspeakstat[:,1]
-       q = np.where(npeaks > min_peaks)           
-       baddies = obspeakstat[q,:][0]
-       badobs = baddies[:,0]
-       
-       wntg.write(f"2212 before proceeding, some obsids (badobs) are being removed from the OBSIDS, SRCNUM, and EPOCHS columns in the temporary file\n")
-       # remove / update the peaky obsids from the file 
-       update_cataloguefile(file2,badobs)
-                   
-    else:
-       npeaks=0
-       baddies= []
-       badobs = []   
+    do_update = False          
+    for bf in band:           
+        uniq_obspeak[bf]=np.unique(obspeaks[bf.lower()])
+        wntg.write(f"\n\n2171  peak search: {bf} ... keeping unique obsids : \n\t{uniq_obspeak}\n")
+        obspeak = np.array(obspeaks[bf.lower()])        
+# - - - -
+        obspeakstat={'uvw2':[],'uvm2':[],'uvw1':[],'u':[],'b':[],'v':[]}
+        min_peaks = minpeaks   # for N > 5 test 23 Aug
+        for o1 in uniq_obspeak[bf.lower()]:
+            no1 = 0
+            q= o1 == obspeak
+            no1 = q.sum()
+            obspeakstat[bf.lower()].append([o1,no1])
+        #obspeakstat = np.array(obspeakstat,dtype=int)
+        wntg.write(f"2182 wrote the statistics for each OBSID in list obspeakstat, and if > {min_peaks} to file baddies.\n The complete obspeakstat are :\n {obspeakstat}\n")
+        
+        if len(obspeakstat[bf.lower()]) > 1:    
+           npeaks = obspeakstat[bf.lower()][:,1]
+           q = np.where(npeaks > min_peaks)           
+           baddies = obspeakstat[bf.lower()][q,:][0]
+           badobs[bf.lower()] = baddies[bf.lower()][:,0]
+           do_update = True
+           wntg.write(f"2212 before proceeding, some obsids (badobs) are being removed from the OBSIDS, SRCNUM, and EPOCHS columns in the temporary file\n")
+                       
+        else:
+           npeaks=0
+           baddies= []
+           badobs[bf.lower()] = []   
+        
+        for ba in badobs[bf.lower()]:
+            all_badobs.append(ba)
+        if len(badobs) > 0:
+            with open(f"{bf}_remove_jumpy.txt","w") as jump:
+                for k in badobs:
+                    jump.write(f"{k}\n")  
+                        
+    if do_update:
+           # remove / update the peaky obsids from the file 
+           update_cataloguefile(file2,all_badobs)
 
-    if len(badobs) > 0:
-        with open("remove_jumpy.txt","w") as jump:
-            for k in badobs:
-                jump.write(f"{k}\n")      
 
  # - - - - SECOND RUN now that the inputcat has been updated (to file2) 
  
