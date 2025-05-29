@@ -42,6 +42,8 @@ minnumber = 8
 # name of file listing bad obsids
 bad_obsidfile = workdir+"remove_obsidfile_list1.txt" # can be an existing list 
 bad_obsidfile2= workdir+"bad_obsids_gaiavar.txt"
+bad_obsidfile3= workdir+"bad_obsids_gaiavar+filter.txt"
+gaiavarStats  = "_gaiavarStats.txt"
 
 # tracing the selections log
 tracing_log = workdir+'tracing.txt'
@@ -1953,10 +1955,10 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     status = os.system(f"stilts_report_1.csh")    
     # match and add column main_type from SIMBAD
     if not status: 
-       print (f"1956 error in generating {outcat}")
+       print (f"1956 WARNING: possible error in generating {outcat}")
     else:   
        wntg.write(f"preprocessing: Creating a catalogue subset: {outcat}\n")
-             
+    os.system(f"cp {wntg} {wntg}.1")         
     
 def post_process_variables1(       
     #indir="/Volumes/DATA11/data/catalogs/suss_gaia_epic/var_lc/",
@@ -2130,12 +2132,15 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     wntg.write(f"postprocessing: test for eruptive : have {threesigma} sigma (staterr+syserr) above median flux \n")
     # test for dimming  : have 5 sigma (staterr+syserr) above median flux 
     obspeaks = {'uvw2':[],'uvm2':[],'uvw1':[],'u':[],'b':[],'v':[]}
+    uniq_obspeak = {'uvw2':[],'uvm2':[],'uvw1':[],'u':[],'b':[],'v':[]}
     badobs = {'uvw2':[],'uvm2':[],'uvw1':[],'u':[],'b':[],'v':[]}
     all_badobs = []
+    all_badobs2 = []
     bandlist = []
     srcnlist = []
     syserr = 0.02
     obsmem_list = []
+    wntg.write(f"\n\n STEP 1\n")
     with open("peak_in_obsid_list.txt","w") as bo:
         for res in results:
         
@@ -2195,34 +2200,38 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
             q= o1 == obspeak
             no1 = q.sum()
             obspeakstat[bf.lower()].append([o1,no1])
-        #obspeakstat = np.array(obspeakstat,dtype=int)
-        wntg.write(f"2182 wrote the statistics for each OBSID in list obspeakstat, and if > {min_peaks} to file baddies.\n The complete obspeakstat are :\n {obspeakstat}\n")
+        wntg.write(f"2200 wrote the statistics for each OBSID in list obspeakstat, and if > {min_peaks} to file baddies.\n The complete obspeakstat are :\n {obspeakstat}\n")
+        print (f"2200 wrote the statistics for each OBSID in list obspeakstat, and if > {min_peaks} to file baddies.\n The complete obspeakstat are :\n {obspeakstat}\n")
         
         if len(obspeakstat[bf.lower()]) > 1:    
-           npeaks = obspeakstat[bf.lower()][:,1]
+           npeaks_ = np.asarray(obspeakstat[bf.lower()],dtype=float)
+           npeaks = npeaks_[:,1]
            q = np.where(npeaks > min_peaks)           
-           baddies = obspeakstat[bf.lower()][q,:][0]
-           badobs[bf.lower()] = baddies[bf.lower()][:,0]
+           baddies = npeaks_[q,:][0]
+           badobs[bf.lower()] = baddies[:,0]
            do_update = True
-           wntg.write(f"2212 before proceeding, some obsids (badobs) are being removed from the OBSIDS, SRCNUM, and EPOCHS columns in the temporary file\n")
                        
         else:
+           wntg.write(f"2213 for filter {bf.lower()} not enough peaks {obspeakstat[bf.lower()]}\n")
            npeaks=0
            baddies= []
            badobs[bf.lower()] = []   
         
         for ba in badobs[bf.lower()]:
             all_badobs.append(ba)
+            all_badobs2.append([ba,bf])
+            
         if len(badobs) > 0:
             with open(f"{bf}_remove_jumpy.txt","w") as jump:
-                for k in badobs:
+                for k in all_badobs2:
                     jump.write(f"{k}\n")  
                         
     if do_update:
            # remove / update the peaky obsids from the file 
+           wntg.write(f"2209 before proceeding, some obsids (badobs) are being removed from the OBSIDS, SRCNUM, and EPOCHS columns in the temporary file\n")
            update_cataloguefile(file2,all_badobs)
 
-
+    wntg.write(f"\n\nSTEP2\n")
  # - - - - SECOND RUN now that the inputcat has been updated (to file2) 
  
     # make place for the new processing 
@@ -2242,6 +2251,8 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
          bad_obsidfile="remove_obsids.txt",chatter=2)
     """
 
+    allbands = ['uvw2','uvm2','uvw1','u','b','v']
+
  #    cull obsids with many sources, but not enough GaiaVar sources
     wntg.write(f"\n2246 Culling sources which have not enough GaiaVar matches:\n")
     with fits.open(file2) as f1:
@@ -2256,153 +2267,133 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
            ra = row[RA2000]#'RAJ2000Ep2000']
            de = row[DE2000]#'DEJ2000Ep2000']
            results.append([source, filename, obsids,ra,de, sband])
-    obs = []
-
+    obs = {'uvw2':[], 'uvm2':[],'uvw1':[],'u':[],'b':[],'v':[]}
+    uniq_obsids = {'uvw2':[], 'uvm2':[],'uvw1':[],'u':[],'b':[],'v':[]}
+    
     for x in results:
-        oo = x[2]       
-        for o in oo:
+        ooids = x[2]       # obsids but needs also filter property ?
+        oband = x[5]
+        for o in ooids:
             if o == "":
                continue
             else:   
-               obs.append(o)
-    uniq_obsids = np.unique(obs) 
-    wntg.write(f"\t 2268 number of remaining unique obsids is {len(uniq_obsids)}\n")
-    wntg.write(f"\n 2269 iauname filename max(count obsids) n_src_list n_gaiavar_list\n")
+               obs[oband.lower()].append(o)
+    for ba in allbands:           
+       uniq_obsids[ba] = np.unique(obs[ba]) 
+       
+       print(f"\t 2268 number of remaining unique obsids is {len(uniq_obsids[ba])}\n")
+       print(f"\n 2269 iauname filename max(count obsids) n_src_list n_gaiavar_list\n")
+       wntg.write(f"\t 2268 number of remaining unique obsids is {len(uniq_obsids[ba])}\n")
+       wntg.write(f"\n 2269 iauname filename max(count obsids) n_src_list n_gaiavar_list\n")
 # - - - -  
 #
 #  run for each filter : 
 #      - prepend filter to result
-    allbands = ['uvw2','uvm2','uvw1','u','b','v']
     all_bad_obsids = []
     bad_res = []
     bad_src = []
-    good_obsids = []
+    good_obsids = {'uvw2':[], 'uvm2':[],'uvw1':[],'u':[],'b':[],'v':[]}
+    source_results = {'uvw2':[], 'uvm2':[],'uvw1':[],'u':[],'b':[],'v':[]}
     for selband in allbands:
         # find for each source 
-        source_results = []
         band_gaiavar = []
         band_results = []
         for x,gav in zip(results,gaiavar):
+        
            source = x[0]
            sband = x[1].split("_")[3]
-           if sband != selband: 
+           
+           if sband != selband: # only selected filter band
                continue
                
            band_gaiavar.append(gav)
            band_results.append(x)
            
-           obs = x[2]
            n_src_list=[]
            
            # for each obsid find matching sources 
            # keep track how many gaiavar sources in each obsid
            
            n_gaiavar_list = []
-           for o in obs:
+           
+           for o in uniq_obsids[selband]:   #just select each obsid in this filter-dependent set once
                n_src = 0       # count for a given obsid
                n_gaia_srcs = 0
                for r,gv in zip(band_results,band_gaiavar):  # not excluding the originating source 
-                   if o in r[2]:
+                   if o in r[2]:    # source has this obsid listed in column obsids
                        n_src += 1
-                       if gv: 
+                       if gv:       # check if it is also a gaiavar variable 
                            n_gaia_srcs += 1 
-               n_src_list.append(n_src)
-               n_gaiavar_list.append(n_gaia_srcs)
-           source_results.append([source,np.max(n_src_list),n_src_list,n_gaiavar_list,sband]) 
-           wntg.write(f"\n2290 name={source} {sband} file={x[1]} max_n_src={np.max(n_src_list)} , n_src={n_src_list} ,n_gaiavar{n_gaiavar_list}\n")
-       
-        n1=[]   # list the maximum number of sources in any of the obsids 
+               n_src_list.append(n_src)            # list a number of sources in each obsid
+               n_gaiavar_list.append(n_gaia_srcs)  # with matching gaiavar list
+           
+           # select the subset of sources which are GaiaVar     
+           #n_var = np.array(n_src_list)[np.array(n_gaiavar_list) > 0] 
+           source_results[selband].append([source, np.max(n_src_list), n_src_list, n_gaiavar_list, uniq_obsids[selband], selband]) 
+           
+    return n_src_list,n_gaiavar_list,source_results, band_gaiavar, band_results, selband, uniq_obsids[selband]
+    
+    bad_obsid = []  
+    # define the limits for exclusion 
+    n_src_limit = 20
+    n_var_ratio_limit = 0.20  
+    
         
-        for x in source_results: 
-           n1.append(x[1])        
-        n_all = np.array(n1)        
+    for selband in allbands:
+    
+        n_all  = np.asarray(source_results[selband][2])
+        n_gaia = np.asarray(source_results[selband][3])
+        obs_1  = np.asarray(source_results[selband][4])
+                              
+#        
+#        with open(f"{selband}{gaiavarStats}","w") as gvs:
+#            gvs.write(f"{selband} n1 n_all gaiavar \n")
+#            g1,g2 = zip(n_all,gaiavar)
+#        
         
-#        return n1,n_all,source_results,band_gaiavar,gaiavar,results, selband
         # select the subset of sources which are GaiaVar 
         
-        n_var = np.array(n1)[band_gaiavar] 
-    
-        # for all variable, select max number gaia var
-        n1=[]
-        for x in source_results:
-          xm = 0
-          try:
-              xm = np.max(x[3])
-          except:
-              print (f"error max gaiaVar: \n{x}\nxm={xm}")    
-          n1.append(xm)
-          
-        n_gaia = np.array(n1)   # includes zeros
+        n_var = n_all[n_gaia > 0] 
+        n_gsc = n_gaia[n_gaia > 0]
+        obs_b = obs_1[n_gaia > 0]
         
-        print (f"2327 len(source_results):{len(source_results)}  n_all:{len(n_all)}  n_var:{len(n_var)}  n_gaia:{len(n_gaia)} \n  ")           
-    
-        wntg.write(f"\n{40*'+='}\n2329 GaiaVar: {selband} \nmax number sources in any obsid:\n{n_all}\nsubset with GaiaVar is:\n{n_var}\nmax number of GaiaVar:\n{n_gaia}\n{50*'+='}\n ")    
-        print     (f"\n{40*'+='}\n2329 GaiaVar: {selband} \nmax number sources in any obsid:\n{n_all}\nsubset with GaiaVar is:\n{n_var}\nmax number of GaiaVar:\n{n_gaia}\n{50*'+='}\n ")    
                      
- # - - - - - figure();plot(n_all,n_gaia/n_all,'+b',)
-          
-        bad_obsid = []  
+ # - - - - - figure();plot(n_all,n_gsc/n_all,'+b',)
+              
+        # find in n_var,n_gsc,obs_b which obsid is bad because too many sources with few/no GaiaVars
+        arebad = (n_var < n_src_limit) & (n_gsc/n_var > n_var_ratio_limit)
         
-        # define the limits for exclusion 
-        n_src_limit = 20
-        n_var_ratio_limit = 0.20  
+        obs_bad = obs_b[arebad]
+        n_srcbad = n_var[arebad]
+        n_gaiabad = ngsc[arebad]
         
-        # find sources with an obsid which is bad because too many sources with few/no GaiaVars
-        arebad = (n_all < n_src_limit) & (n_gaia/n_all > n_var_ratio_limit)
+        obs_good = obs_b[not arebad]
+        n_srcgood = n_var[not arebad]
+        n_gaiagood = ngsc[not arebad]
         
-        Nsrc = len(n_all)   # loop over source
-        bad_res = []
-        bad_src = []
-        n_gaia_4these = []
-        wntg.write(f"2326 GaiaVar: {selband} results, source, n_gaia \n")
-        for k in range(Nsrc):
-            bad_res.append(band_results[k])
-            bad_src.append(source_results[k])
-            n_gaia_4these.append(n_gaia[k])
-            wntg.write(f"{band_results[k]} {source_results[k]} {n_gaia[k]}\n")
-    
-        # now a loop over the sources :        
-        #     we need to filter out the bad obsids from the good ones  
-        wntg.write(f"\n2333 Now go over obsids and check if it has enough GaiaVars and points\n\nobsid n_src n_gaia/n_src  n_gaia\n")   
-        for o in uniq_obsids:  # for each OBSID check if good or bad
-            for k in range(Nsrc):
-                res    = bad_res[k]
-                srcres = bad_src[k]   
-                ngaia1 = n_gaia_4these[k]
-                obsid1 = res[2]   # list of obsids 
-                n_src1 = srcres[2]  # matching list of sources 
-                for obs,nnn in zip(obsid1,n_src1):
-                     if o == obs: # match outer loop
-                         wntg.write (f"2344 {o}  x={nnn}  y={ngaia1/nnn} {ngaia1} \n")
-                         if (nnn > n_src_limit) & (ngaia1/nnn < n_var_ratio_limit):  # bad selection
-                             bad_obsid.append(o)
-                             #wntg.write(f" {bad_obsid}\n")
-                         else: 
-                             wntg.write("\n")    
-        uniq_bad_obsids=np.unique(bad_obsid)
-        wntg.write(f"{40*'+='}\n2349 {selband} the unique bad_obsids found with the GaiaVar/minimum src criterion are:\n{uniq_bad_obsids}\n  ")
-        
-   # good_obsids = []
-        for obs in uniq_obsids:
-            if obs in uniq_bad_obsids:
-                continue
-            else: good_obsids.append([obs,selband])    
-        wntg.write (f"\n2356 {selband} The number of bad obsids (too many sources, not enough Gaia Var's) is {len(uniq_bad_obsids)}\n")    
-    # - - - -    plot(n_all,n_gaia/n_all,'+g',)
+        for o8 in obs_b:
+            bad_obsid.append(o8)  # regardless of filter
+                  
+        # - - - -    plot(n_all,n_gaia/n_all,'+g',)
       
         with open(indir+f"/{selband}_good_obsids_gaiavar.txt","w") as gf:
-            for obs in good_obsids:
-               gf.write(f"{obs}\n")
+            gf.write(f"obsid       band   n_src  n_gaia -good \n")
+            for o8,n8,ng in zip(obs_good,n_srcgood,ngaiagood):
+               gf.write(f"{o8} {selband:4s}    {n8:3i}   {ng3I}\n")
         with open(bad_obsidfile2,"a") as gf:
-            for obs in uniq_bad_obsids:
-               gf.write(f"{obs}\n")
-                           
+            for o8 in obs_bad:
+               gf.write(f"{o8}\n")
+        with open(bad_obsidfile3,"a") as gf:
+            gf.write(f"obsid       band   n_src  n_gaia  -bad \n")
+            for o8,n8,ng in zip(obs_bad,n_srcbad,ngaiabad):
+               gf.write(f"{obs} {selband}\n")
+                         
     # remove / update the obsids with many sources above expected from the file 
     
-    wntg.write(f"2367 GaiaVar: The bad obsids are now removed from the temporary catalog being processed (step3_...)\n")
     file3 = f"step3_{file2}"
     os.system(f"cp {file2}  {file3}")
-    update_cataloguefile(f"step3_{file2}",uniq_bad_obsids)
+    update_cataloguefile(f"step3_{file2}", bad_obsids)
+    wntg.write(f"2367 GaiaVar: The bad obsids are now removed from the temporary catalog being processed (step3_...)\n")
     
  # - - - -                   
  
