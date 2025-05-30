@@ -2110,6 +2110,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     from astropy.coordinates import SkyCoord
         
     wntg.write(f"postprocessing: start \n make list results [\n]")
+    allbands = ['uvw2','uvm2','uvw1','u','b','v']
     
     file1 = outcat # "SimbadxSUSS5_variable_sources.fits" 
     file2 = "temp_file.fits"
@@ -2141,6 +2142,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     syserr = 0.02
     obsmem_list = []
     wntg.write(f"\n\n STEP 1\n")
+    print ("opening peak_in_obsid_list.txt")
     with open("peak_in_obsid_list.txt","w") as bo:
         for res in results:
         
@@ -2170,7 +2172,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
             q = mval > 1.
             print (f" median {np.median(mag)}  {threesigma} sigma {threesigma * (magerr+syserr)}",
                 f"is {mval} > 1 ?" )
-            wntg.write(f"2157 {band} no peak in search: {filen}  median mag={medmag:.2f} std={stdmean:.2f} \n")    
+            #wntg.write(f"2157 {band} no peak in search: {filen}  median mag={medmag:.2f} std={stdmean:.2f} \n")    
             if q.sum() > 0:
                 obsmem_list.append([obses, mag, q, band])
                 wntg.write (f"\n\t2160 {band} found peaks in file={filen}, filter={band}\n mag={mag} \nobsids={obses} \npeak mval > 1={q}\n")
@@ -2183,14 +2185,17 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
                       bo.write(f"{o} {band}\n")
                       wntg.write(f"  tobsid[more than one peak] {{o}}\n")
                       obspeaks[band.lower()].append(o)
+                      
     # for each variable lc-filter file obspeak list the obsid with the peak value   
     # so if there are multiple sources with the peak in the same obsid (could be 
     # different filter) we can find them now.
     
-    do_update = False          
-    for bf in band:           
+    do_update = False  
+            
+    for bf in allbands:   
+        print (f"2193 processing bad peaks for filter {bf}\n")        
         uniq_obspeak[bf]=np.unique(obspeaks[bf.lower()])
-        wntg.write(f"\n\n2171  peak search: {bf} ... keeping unique obsids : \n\t{uniq_obspeak}\n")
+        wntg.write(f"\n\n2196  peak search: {bf} ... keeping unique obsids : \n\t{uniq_obspeak}\n")
         obspeak = np.array(obspeaks[bf.lower()])        
 # - - - -
         obspeakstat={'uvw2':[],'uvm2':[],'uvw1':[],'u':[],'b':[],'v':[]}
@@ -2221,6 +2226,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
             all_badobs.append(ba)
             all_badobs2.append([ba,bf])
             
+        print (f"2229 {bf} len(badobs)={len(badobs)}")    
         if len(badobs) > 0:
             with open(f"{bf}_remove_jumpy.txt","w") as jump:
                 for k in all_badobs2:
@@ -2251,7 +2257,6 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
          bad_obsidfile="remove_obsids.txt",chatter=2)
     """
 
-    allbands = ['uvw2','uvm2','uvw1','u','b','v']
 
  #    cull obsids with many sources, but not enough GaiaVar sources
     wntg.write(f"\n2246 Culling sources which have not enough GaiaVar matches:\n")
@@ -2281,10 +2286,10 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     for ba in allbands:           
        uniq_obsids[ba] = np.unique(obs[ba]) 
        
-       print(f"\t 2268 number of remaining unique obsids is {len(uniq_obsids[ba])}\n")
-       print(f"\n 2269 iauname filename max(count obsids) n_src_list n_gaiavar_list\n")
-       wntg.write(f"\t 2268 number of remaining unique obsids is {len(uniq_obsids[ba])}\n")
-       wntg.write(f"\n 2269 iauname filename max(count obsids) n_src_list n_gaiavar_list\n")
+       print(f"2289 {ba} number of remaining unique obsids is {len(uniq_obsids[ba])}\n")
+       #print(f"\n 2269 iauname filename max(count obsids) n_src_list n_gaiavar_list\n")
+       wntg.write(f"2289 {ba} number of remaining unique obsids is {len(uniq_obsids[ba])}\n")
+       #wntg.write(f"\n 2269 iauname filename max(count obsids) n_src_list n_gaiavar_list\n")
 # - - - -  
 #
 #  run for each filter : 
@@ -2309,29 +2314,35 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
            band_gaiavar.append(gav)
            band_results.append(x)
            
-           n_src_list=[]
+        n_src_list=[]
            
            # for each obsid find matching sources 
            # keep track how many gaiavar sources in each obsid
            
-           n_gaiavar_list = []
-           
-           for o in uniq_obsids[selband]:   #just select each obsid in this filter-dependent set once
+        n_gaiavar_list = []
+        id_obsid_list = []           
+
+        for o in uniq_obsids[selband]:   #just select each obsid in this filter-dependent set once
+               # matching obsids
+               id_obsid = None
                n_src = 0       # count for a given obsid
                n_gaia_srcs = 0
                for r,gv in zip(band_results,band_gaiavar):  # not excluding the originating source 
                    if o in r[2]:    # source has this obsid listed in column obsids
                        n_src += 1
+                       id_obsid = o
                        if gv:       # check if it is also a gaiavar variable 
                            n_gaia_srcs += 1 
+               if id_obsid != None: id_obsid_list.append(o)
                n_src_list.append(n_src)            # list a number of sources in each obsid
                n_gaiavar_list.append(n_gaia_srcs)  # with matching gaiavar list
+
            
            # select the subset of sources which are GaiaVar     
            #n_var = np.array(n_src_list)[np.array(n_gaiavar_list) > 0] 
-           source_results[selband].append([source, np.max(n_src_list), n_src_list, n_gaiavar_list, uniq_obsids[selband], selband]) 
+        source_results[selband].append([selband, np.max(n_src_list), n_src_list, n_gaiavar_list, id_obsid_list]) 
            
-    return n_src_list,n_gaiavar_list,source_results, band_gaiavar, band_results, selband, uniq_obsids[selband]
+#    return n_src_list,n_gaiavar_list,source_results, band_gaiavar, band_results, selband, uniq_obsids[selband]
     
     bad_obsid = []  
     # define the limits for exclusion 
@@ -2341,9 +2352,10 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
         
     for selband in allbands:
     
-        n_all  = np.asarray(source_results[selband][2])
-        n_gaia = np.asarray(source_results[selband][3])
-        obs_1  = np.asarray(source_results[selband][4])
+        sr = source_results[selband][0]
+        n_all  = np.asarray(sr[2])  
+        n_gaia = np.asarray(sr[3])
+        obs_1  = np.asarray(sr[4])
                               
 #        
 #        with open(f"{selband}{gaiavarStats}","w") as gvs:
@@ -2352,7 +2364,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
 #        
         
         # select the subset of sources which are GaiaVar 
-        
+        #return n_all, n_gaia, obs_1, source_results
         n_var = n_all[n_gaia > 0] 
         n_gsc = n_gaia[n_gaia > 0]
         obs_b = obs_1[n_gaia > 0]
@@ -2365,39 +2377,48 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
         
         obs_bad = obs_b[arebad]
         n_srcbad = n_var[arebad]
-        n_gaiabad = ngsc[arebad]
+        n_gaiabad = n_gsc[arebad]
         
-        obs_good = obs_b[not arebad]
-        n_srcgood = n_var[not arebad]
-        n_gaiagood = ngsc[not arebad]
+        obs_good = obs_b[arebad == False]
+        n_srcgood = n_var[arebad == False]
+        n_gaiagood = n_gsc[arebad == False]
         
         for o8 in obs_b:
             bad_obsid.append(o8)  # regardless of filter
                   
         # - - - -    plot(n_all,n_gaia/n_all,'+g',)
       
+        print (f"writing file {indir}/{selband}_good_obsids_gaiavar.txt \n")
         with open(indir+f"/{selband}_good_obsids_gaiavar.txt","w") as gf:
             gf.write(f"obsid       band   n_src  n_gaia -good \n")
-            for o8,n8,ng in zip(obs_good,n_srcgood,ngaiagood):
-               gf.write(f"{o8} {selband:4s}    {n8:3i}   {ng3I}\n")
+            print (f"obsid       band   n_src  n_gaia -good \n")
+            for o8,n8,ng in zip(obs_good,n_srcgood,n_gaiagood):
+               gf.write(f"{o8:12} {selband:4}    {n8:3d}   {ng:4d}\n")
+               print(f"{o8} {selband:4s}    {n8:4d}   {ng:4d}\n")
+        print ("file done")       
         with open(bad_obsidfile2,"a") as gf:
             for o8 in obs_bad:
                gf.write(f"{o8}\n")
+        print (f"bad obsids: {obs_bad}")       
         with open(bad_obsidfile3,"a") as gf:
             gf.write(f"obsid       band   n_src  n_gaia  -bad \n")
-            for o8,n8,ng in zip(obs_bad,n_srcbad,ngaiabad):
-               gf.write(f"{obs} {selband}\n")
+            print (f"obsid       band   n_src  n_gaia  -bad \n")
+
+            for o8,n8,ng in zip(obs_bad,n_srcbad,n_gaiabad):
+               gf.write(f"{o8:11} {selband:4} {n8:4d} {ng:4d} \n")
+               print (f"{o8} {selband} {n8} {ng}\n")
+        print ("printing/writing files done")       
                          
     # remove / update the obsids with many sources above expected from the file 
     
     file3 = f"step3_{file2}"
     os.system(f"cp {file2}  {file3}")
-    update_cataloguefile(f"step3_{file2}", bad_obsids)
+    update_cataloguefile(f"step3_{file2}", bad_obsid)
     wntg.write(f"2367 GaiaVar: The bad obsids are now removed from the temporary catalog being processed (step3_...)\n")
     
  # - - - -                   
  
-    # move the results from step 1 out of the way
+    # move the results from step 1+2 out of the way
     os.system("mkdir var_lc_step1/;mv X*.fits var_lc_step1")
     wntg.write(f"2374 GaiaVar: Moving the previous fits file results to subdir var_lc_step1\n")
     
@@ -2407,12 +2428,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
          make_file_variable( band=band_, minnumber=minpnts, maxnumber=1000, 
          chi2_red_min=5., inputdir="./",inputcat=file3,min_srcdist=6.0,
          bad_obsidfile=bad_obsidfile2,chatter=2)
-    """     
-    for band_ in ["uvw2","uvm2","uvw1","u","b","v"]:
-        xmm2.make_file_variable( band=band_, minnumber=minpnts, maxnumber=1000, 
-         chi2_red_min=5., inputdir="./",inputcat=file3,min_srcdist=6.0,
-         bad_obsidfile="remove_obsids.txt",chatter=2)
-    """ 
+
     wntg.write(f"Remaking the fits files for the selected variables after culling. (newfiles.txt) \n")
     
     # create light curve plots (may need to adjust minpnts) 
@@ -2438,8 +2454,9 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
                     pass          
     else:
         wntg.write(f"plots are not selected in input; call plot_lc() for each file in newfiles.txt\n\n ")
-    # repeat earlier code with 'file3' to recompute n_all, n_gaia (not implemented here)                             
-    return n_all,n_gaia, bad_obsid, good_obsids, results, source_results
+    # repeat earlier code with 'file3' to recompute n_all, n_gaia (not implemented here) 
+    print (f"returns bad_obsid, results, source_results :\n   [band, np.max(n_src_list), n_src_list, n_gaiavar_list, id_obsid_list]")                            
+    return  bad_obsid, results, source_results
   
     print ("WARNING: remember to call close_wntg() to close the log!!!!")   
     print ("WARNING: remember to call close_wntg() to close the log!!!!")   
