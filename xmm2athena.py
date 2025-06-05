@@ -2120,13 +2120,13 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
        gaiavar=t0['GaiaPhotVar_flag']
        results = []
        for row in t0:
-           fband = row['filter']
-           source = row['IAUNAME']
-           filename = row['filename'].split("/")[-1]
-           obsids = row['OBSIDS'].split("_")
-           ra = row[RA2000]#['RAJ2000Ep2000']
-           de = row[DE2000]#['DEJ2000Ep2000']
-           results.append([source, filename, obsids,ra,de, fband])
+            fband = row['filter']
+            source = row['IAUNAME']
+            filename = row['filename'].split("/")[-1]
+            obsids = row['OBSIDS'].split("_")
+            ra = row[RA2000]#['RAJ2000Ep2000']
+            de = row[DE2000]#['DEJ2000Ep2000']
+            results.append([source, filename, obsids,ra,de, fband])
 
  # - - - - 
 #for obsband in bands:
@@ -2143,7 +2143,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
     obsmem_list = []
     wntg.write(f"\n\n STEP 1\n")
     print ("opening peak_in_obsid_list.txt")
-    with open("peak_in_obsid_list.txt","w") as bo:
+    with open("a_peak_in_obsid_list.txt","w") as bo:
         for res in results:
         
         # now we consider the data from one source+filter 
@@ -2154,10 +2154,19 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
             bandlist.append(band)
             #obses = res[2]            
             with fits.open(filen) as gd:
-                obses = gd[1].data['OBSID']
+                obses = gd[1].data['OBSID']  # OBSID -> OBSIDS
                 mag   = gd[1].data[f"{band.upper()}_AB_MAG"]
                 magerr   = gd[1].data[f"{band.upper()}_AB_MAG_ERR"]
-                print (f"magnitudes = {mag}")
+                epoch = gd[1].data['obs_epoch']
+                quality = gd[1].data[f"{band.upper()}_QUALITY_FLAG"]
+                # remove quality not zero 
+                if onlyqualzero:
+                  qzero = quality == 0
+                  obses = obses[qzero]
+                  mag = mag[qzero]
+                  magerr = magerr[qzero]
+                  epoch = epoch[qzero]
+                  print (f"magnitudes = {mag}")
             # 23 Aug - adding error in the mean as proxy for that in the median
             # 27 aug - removing the maximum and minimum points for the test of outliers
             medmag=np.median(mag)
@@ -2174,39 +2183,70 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
                 f"is {mval} > 1 ?" )
             #wntg.write(f"2157 {band} no peak in search: {filen}  median mag={medmag:.2f} std={stdmean:.2f} \n")    
             if q.sum() > 0:
-                obsmem_list.append([obses, mag, q, band])
                 wntg.write (f"\n\t2160 {band} found peaks in file={filen}, filter={band}\n mag={mag} \nobsids={obses} \npeak mval > 1={q}\n")
                 if q.sum() == 1:
-                    bo.write(f"{obses[q][0]} {band}\n")
+                    obsmem_list.append([obses[q][0], mag[q],band, filen])
                     wntg.write(f"\tobsid[one peak ]{obses[q][0]}\n")
-                    obspeaks[band.lower()].append(f"{obses[q][0]}")
+                    obspeaks[band.lower()].append([f"{obses[q][0]}",mag[q],filen,epoch[q]])
                 else:    
-                   for o in obses[q]:
-                      bo.write(f"{o} {band}\n")
+                   for o,m8,ep8 in zip(obses[q],mag[q],epoch[q]):
+                      obsmem_list.append([o, m8, band, filen])
+                      bo.write(f"{o} {band} {filen} \n")
                       wntg.write(f"  tobsid[more than one peak] {{o}}\n")
-                      obspeaks[band.lower()].append(o)
+                      obspeaks[band.lower()].append([o,m8,filen,ep8])
                       
+    with open("obsmem_list_peaks.txt","w") as oml:
+        oml.write(f"obspeak search line 2177\n obsids magnitude q_mval_gt_1 band filename\n")
+        for memb in obsmem_list: 
+            oml.write(f"{memb}\n") 
+            
+    z_peakfile = "peaks_list_20250604.txt"
+    zpf = open(z_peakfile,'w')
+            
+    do_update = False  
     # for each variable lc-filter file obspeak list the obsid with the peak value   
     # so if there are multiple sources with the peak in the same obsid (could be 
     # different filter) we can find them now.
     
-    do_update = False  
-            
+#    return allbands, obspeaks, obsmem_list, results 
+
     for bf in allbands:   
-        print (f"2193 processing bad peaks for filter {bf}\n")        
-        uniq_obspeak[bf]=np.unique(obspeaks[bf.lower()])
-        wntg.write(f"\n\n2196  peak search: {bf} ... keeping unique obsids : \n\t{uniq_obspeak}\n")
-        obspeak = np.array(obspeaks[bf.lower()])        
-# - - - -
+        print (f"2201 processing bad peaks for filter {bf}\n") 
+        # reformat the content of obspeak
+        op1 = []
+        op2 = []
+        op3 = []
+        op4 = []
+        try:
+          for a8 in obspeaks[bf.lower()]: 
+              op1.append(a8[0])  #obsid
+              if type(a8[1]) == np.float32: op2.append(a8[1])   # mag
+              else: op2.append(a8[1][0])
+              op3.append(a8[2])    # filename
+              if type(a8[3]) == np.float64: op4.append(a8[3])
+              else: op4.append(a8[3][0])    # epoch
+        except:
+           print ("RUNTIME ERROR: 2217 ")
+           return obspeaks, results, op1, op2, op3, op4, a8      
+        obspeak =  np.array([op1,op2,op3,op4])   
+        pkobs,pkindex,peakcount=np.unique(obspeak[0],return_index=True, return_counts=True)
+        uniq_obspeak[bf] = pkobs
         obspeakstat={'uvw2':[],'uvm2':[],'uvw1':[],'u':[],'b':[],'v':[]}
         min_peaks = minpeaks   # for N > 5 test 23 Aug
+        
+        for z_obs,z_index,z_count in zip(uniq_obspeak[bf],pkindex,peakcount):
+            if z_count >= minpeaks: 
+               zq = z_obs == obspeak[0]  # index of records
+               zrecs = obspeak[:,zq]
+               for k in range(z_count):
+                  zr = zrecs[:,k] 
+                  zpf.write(f"{zr[0]} {bf:4s} {zr[2]} {zr[1]} {z_count:3d} {zr[3]} \n")
+        
         for o1 in uniq_obspeak[bf.lower()]:
             no1 = 0
-            q= o1 == obspeak
+            q =  o1 == obspeak[:,0]
             no1 = q.sum()
             obspeakstat[bf.lower()].append([o1,no1])
-        wntg.write(f"2200 wrote the statistics for each OBSID in list obspeakstat, and if > {min_peaks} to file baddies.\n The complete obspeakstat are :\n {obspeakstat}\n")
-        print (f"2200 wrote the statistics for each OBSID in list obspeakstat, and if > {min_peaks} to file baddies.\n The complete obspeakstat are :\n {obspeakstat}\n")
         
         if len(obspeakstat[bf.lower()]) > 1:    
            npeaks_ = np.asarray(obspeakstat[bf.lower()],dtype=float)
@@ -2217,7 +2257,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
            do_update = True
                        
         else:
-           wntg.write(f"2213 for filter {bf.lower()} not enough peaks {obspeakstat[bf.lower()]}\n")
+           print (f"2248 for filter {bf.lower()} not enough peaks {obspeakstat[bf.lower()]}\n")
            npeaks=0
            baddies= []
            badobs[bf.lower()] = []   
@@ -2226,17 +2266,19 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
             all_badobs.append(ba)
             all_badobs2.append([ba,bf])
             
-        print (f"2229 {bf} len(badobs)={len(badobs)}")    
+        print (f"2257 {bf} len(badobs)={len(badobs)}")    
         if len(badobs) > 0:
             with open(f"{bf}_remove_jumpy.txt","w") as jump:
                 for k in all_badobs2:
                     jump.write(f"{k}\n")  
+        all_badobs = []
                         
     if do_update:
            # remove / update the peaky obsids from the file 
            wntg.write(f"2209 before proceeding, some obsids (badobs) are being removed from the OBSIDS, SRCNUM, and EPOCHS columns in the temporary file\n")
            update_cataloguefile(file2,all_badobs)
-
+           
+    zpf.close()
     wntg.write(f"\n\nSTEP2\n")
  # - - - - SECOND RUN now that the inputcat has been updated (to file2) 
  
@@ -2249,14 +2291,6 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
         make_file_variable( band=band_, minnumber=10, maxnumber=1000, 
          chi2_red_min=chi2_red_min, inputdir="./",inputcat=file2,min_srcdist=min_srcdist,
          bad_obsidfile=bad_obsidfile,chatter=2)
-
-    """ for pasting in ipython (test)
-    for band_ in ["uvw2","uvm2","uvw1","u","b","v"]:
-        xmm2.make_file_variable( band=band_, minnumber=minpnts, maxnumber=1000, 
-         chi2_red_min=5., inputdir="./",inputcat=file2,min_srcdist=6.0,
-         bad_obsidfile="remove_obsids.txt",chatter=2)
-    """
-
 
  #    cull obsids with many sources, but not enough GaiaVar sources
     wntg.write(f"\n2246 Culling sources which have not enough GaiaVar matches:\n")
