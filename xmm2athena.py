@@ -2392,6 +2392,12 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
         n_all  = np.asarray(sr[2])  
         n_gaia = np.asarray(sr[3])
         obs_1  = np.asarray(sr[4])
+        
+        with open("full_list_of_varsrc.txt","a") as gf:
+            gf.write(f"obsid     band   n_src  n_gaia  ratio \n")
+            ratio = n_gaia/n_all
+            for o8,n8,ng,r8 in zip(obs_1, n_all, n_gaia, n_gaia/n_all):
+               gf.write(f"{o8:12} {selband:4}    {n8:3d}   {ng:4d}  {r8:.3f} \n")
                               
 #        
 #        with open(f"{selband}{gaiavarStats}","w") as gvs:
@@ -2401,28 +2407,29 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
         
         # select the subset of sources which are GaiaVar 
         #return n_all, n_gaia, obs_1, source_results
-        n_var = n_all[n_gaia > 0] 
-        n_gsc = n_gaia[n_gaia > 0]
-        obs_b = obs_1[n_gaia > 0]
+        n_var = n_all[n_gaia >= 0] 
+        n_gsc = n_gaia[n_gaia >= 0]
+        obs_b = obs_1[n_gaia >= 0]
         
         with open("full_list_of_varsrc_with_gaiavar.txt","a") as gf:
             gf.write(f"obsid     band   n_src  n_gaia  ratio \n")
-            ratio = n_gsc/n_var
-            for o8,n8,ng,r8 in zip(obs_b,n_var,n_gsc,ratio):
+            ratio = n_var/n_gsc
+            for o8,n8,ng,r8 in zip(obs_b,n_var,n_gsc,n_var/n_gaia):
                gf.write(f"{o8:12} {selband:4}    {n8:3d}   {ng:4d}  {r8:.3f} \n")
                      
  # - - - - - figure();plot(n_all,n_gsc/n_all,'+b',)
               
         # find in n_var,n_gsc,obs_b which obsid is bad because too many sources with few/no GaiaVars
         arebad = (n_var > n_src_limit) & (n_gsc/n_var < n_var_ratio_limit)
+        aregood = (n_var < n_src_limit) | (n_gsc/n_var > n_var_ratio_limit)
         
         obs_bad = obs_b[arebad]
         n_srcbad = n_var[arebad]
         n_gaiabad = n_gsc[arebad]
         
-        obs_good = obs_b[arebad == False]
-        n_srcgood = n_var[arebad == False]
-        n_gaiagood = n_gsc[arebad == False]
+        obs_good = obs_b[aregood]
+        n_srcgood = n_var[aregood]
+        n_gaiagood = n_gsc[aregood]
         
         for o8 in obs_b:
             bad_obsid.append(o8)  # regardless of filter
@@ -2430,7 +2437,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
                   
         # - - - -    plot(n_all,n_gaia/n_all,'+g',)
       
-        print (f"writing file {indir}/{selband}_good_obsids_gaiavar.txt \n")
+        print (f"writing file {indir}/{selband}_actualgood_obsids_gaiavar.txt \n")
         with open(indir+f"/{selband}_good_obsids_gaiavar.txt","w") as gf:
             gf.write(f"obsid       band   n_src  n_gaia -good \n")
             print (f"obsid       band   n_src  n_gaia -good \n")
