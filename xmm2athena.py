@@ -2265,12 +2265,14 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
         for ba in badobs[bf.lower()]:
             all_badobs.append(ba)
             all_badobs2.append([ba,bf])
-            
+        
+        """    
         print (f"2257 {bf} len(badobs)={len(badobs)}")    
         if len(badobs) > 0:
             with open(f"{bf}_remove_jumpy.txt","w") as jump:
                 for k in all_badobs2:
-                    jump.write(f"{k}\n")  
+                    jump.write(f"{k}\n") 
+        """             
         all_badobs = []
                         
     if do_update:
@@ -2403,11 +2405,16 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
         n_gsc = n_gaia[n_gaia > 0]
         obs_b = obs_1[n_gaia > 0]
         
+        with open("full_list_of_varsrc_with_gaiavar.txt","a") as gf:
+            gf.write(f"obsid     band   n_src  n_gaia  ratio \n")
+            ratio = n_gsc/n_var
+            for o8,n8,ng,r8 in zip(obs_b,n_var,n_gsc,ratio):
+               gf.write(f"{o8:12} {selband:4}    {n8:3d}   {ng:4d}  {r8:.3f} \n")
                      
  # - - - - - figure();plot(n_all,n_gsc/n_all,'+b',)
               
         # find in n_var,n_gsc,obs_b which obsid is bad because too many sources with few/no GaiaVars
-        arebad = (n_var < n_src_limit) & (n_gsc/n_var > n_var_ratio_limit)
+        arebad = (n_var > n_src_limit) & (n_gsc/n_var < n_var_ratio_limit)
         
         obs_bad = obs_b[arebad]
         n_srcbad = n_var[arebad]
@@ -2419,6 +2426,7 @@ main_type=="QSO"|main_type=="AGN"|main_type=="BLLAC"|main_type=="Blazar"|main_ty
         
         for o8 in obs_b:
             bad_obsid.append(o8)  # regardless of filter
+               
                   
         # - - - -    plot(n_all,n_gaia/n_all,'+g',)
       
